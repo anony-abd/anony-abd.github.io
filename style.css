@@ -10,6 +10,12 @@ header{
     align-items: center;
 }
 
+main{
+    display: flex;
+    font-family: Quicksand;
+    align-items: center;
+}
+
 .search-wrapper{
     position: absolute;
     left: 50%;
