@@ -71,3 +71,9 @@ footer{
     align-items: center;
     justify-content: center;
 }
+
+@media (max-width: 600px){
+    header, .nav-bar, footer{
+        width: 100%;
+    }
+}
