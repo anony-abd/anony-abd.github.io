@@ -1,77 +1,73 @@
 body{
-    margin-top: 0;
+    margin: 0;
 }
 
 header{
     position: relative;
     display: flex;
-    font-family: 'Comfortaa', 'Outfit', 'Quicksand', 'Josefin Sans';
+    font-family: 'Poppins', 'Outfit', 'Quicksand', 'Comfortaa', 'Josefin Sans';
     font-size: 0.7em;
+    font-weight: 100;
     align-items: center;
 }
 
-main{
+.search-icon{
+    display: inline-block;
+    border: none;
+    outline: none;
+    background: transparent;
+    margin-right: 10px;
+    margin-left: auto;
+}
+
+.search-icon:hover{
+    color: #00a994;
+}
+
+.nav-bar ul{
+    list-style-type: none;
+    background-color: black;
+    padding: 0px;
+    margin: 0px;
+    overflow: hidden;
+}
+
+.nav-bar a{
+    color: white;
+    text-decoration: none;
+    padding: 7px;
+    display: block;
+    text-align: center;
+}
+
+.nav-bar a:hover{
+    background-color: #00a994;
+}
+
+.nav-bar li{
+    float: left;
+}
+
+.nav-bar a:active{
+    background-color: #00a994;
+}
+
+.nav-bar .active{
+    background-color: #00a994;
+}
+
+footer img{
+    vertical-align: middle;
+}
+
+footer{
+    background-color: hsl(0, 0%, 80%);
+    width: 100%;
+    position: fixed;
+    bottom: 0;
     display: flex;
-    font-family: Quicksand;
+    padding: 10px;
+    gap: 2px;
     align-items: center;
-}
-
-.search-wrapper{
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;    
-    align-items: center;
-    border: 1px solid #00a994;
-    border-radius: 999px;
-    padding: 8px 16px;
-    width: 380px;
-    max-width: 60%;
-}
-
-.search-bar{
-    flex: 1;
-    border: none;
-    outline: none;
-    background: transparent;
-    box-shadow: none;
-    -webkit-apperance: none;
-    appearance: none;
-    padding: 0;
-    margin: 0;
-}
-
-.search-btn{
-    border: none;
-    outline: none;
-    background: transparent;
-    box-shadow: none;
-    appearance: none;
-    padding: 0;
-    margin: 0;
-}
-
-@media (max-width: 900px){
-.search-wrapper{
-    position: absolute;
-    left: 70%;
-    transform: translateX(-50%);
-    display: flex;    
-    align-items: center;
-    gap: 8px;
-    border: 1px solid #00a994;
-    border-radius: 999px;
-    padding: 6px 12px;
-    max-width: 30%;
-}
-.search-btn{
-    position: relative;
-    
-}
-.fa-solid.fa-magnifying-glass{
-    flex-shrink: 0;
-    color: black;
-    font-size: 14px;
-    cursor: pointer;
-}
+    justify-content: center;
 }
