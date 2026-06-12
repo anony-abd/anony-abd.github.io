@@ -2,6 +2,25 @@
    helpPanel.js  –  Mathgabs shared help / info dropdown panel
    ───────────────────────────────────────────────────────────── */
 
+/* ─────────────────────────────────────────────────────────────
+   Mobile viewport height fix — sets body height to the true
+   visible area (window.innerHeight) so flex:1 on <main> always
+   pushes the footer flush to the bottom on every mobile browser.
+   ───────────────────────────────────────────────────────────── */
+(function setMobileViewportHeight() {
+  function apply() {
+    if (window.innerWidth > 900) return;   // desktop: leave CSS alone
+    document.body.style.height = window.innerHeight + 'px';
+  }
+
+  apply();
+  window.addEventListener('resize', apply);
+  window.addEventListener('orientationchange', () => {
+    // Brief delay so innerHeight has updated after rotation
+    setTimeout(apply, 150);
+  });
+})();
+
 (function () {
   /* ── Panel HTML ───────────────────────────────────────────── */
   const PANEL_HTML = `
@@ -134,7 +153,7 @@
   /* ── Public API ───────────────────────────────────────────── */
   window.toggleHelpPanel = function () {
     const overlay = document.getElementById('help-panel-overlay');
-    const panel   = document.getElementById('help-panel');
+    const panel = document.getElementById('help-panel');
     if (!overlay) return;
     const open = overlay.classList.toggle('hp-open');
     panel.classList.toggle('hp-panel-open', open);
@@ -151,8 +170,8 @@
 
   window.hpToggle = function (btn) {
     const section = btn.closest('.hp-section');
-    const body    = section.querySelector('.hp-body');
-    const isOpen  = section.classList.contains('hp-section-open');
+    const body = section.querySelector('.hp-body');
+    const isOpen = section.classList.contains('hp-section-open');
 
     // Close all open sections first
     document.querySelectorAll('.hp-section.hp-section-open').forEach(s => {
@@ -165,4 +184,90 @@
       body.style.maxHeight = body.scrollHeight + 'px';
     }
   };
+})();
+
+/* ─────────────────────────────────────────────────────────────
+   Mobile Nav — active item in bar (left), social links (right),
+   tap active item → dropdown overlay; tap social link → closes
+   dropdown but active bar item always stays visible (CSS-driven)
+   ───────────────────────────────────────────────────────────── */
+(function initMobileNav() {
+  function setup() {
+    if (window.innerWidth > 768) return;
+
+    const navBar = document.querySelector('.nav-bar');
+    if (!navBar) return;
+
+    const mainUl = navBar.querySelector('ul:not(#social-links)');
+    if (!mainUl) return;
+
+    // If this page has no .active in the main nav (e.g. games.html where
+    // active is on the social icon), fall back to marking first li active
+    // so CSS always renders something in the bar.
+    if (!mainUl.querySelector('li.active')) {
+      const first = mainUl.querySelector('li');
+      if (first) first.classList.add('active');
+    }
+
+    const activeItem = mainUl.querySelector('li.active');
+    if (!activeItem) return;
+
+    // Guard against double-init
+    if (navBar.dataset.mobileNavInit) return;
+    navBar.dataset.mobileNavInit = '1';
+
+    // Tap active item when CLOSED → open dropdown (don't navigate)
+    // Tap active item when OPEN  → navigate normally
+    activeItem.addEventListener('click', (e) => {
+      if (!navBar.classList.contains('nav-open')) {
+        e.preventDefault();
+        e.stopPropagation();
+        navBar.classList.add('nav-open');
+      }
+      // already open: let the anchor navigate
+    });
+
+    // Close dropdown when click lands OUTSIDE the main nav UL.
+    // Social links ARE outside mainUl, so clicking them closes the
+    // dropdown — but the active bar item is always shown by CSS (not JS),
+    // so it never "disappears" from the bar.
+    document.addEventListener('click', (e) => {
+      if (!mainUl.contains(e.target)) {
+        navBar.classList.remove('nav-open');
+      }
+    }, true); // capture phase so it fires before link navigation
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setup);
+  } else {
+    setup();
+  }
+
+  // Restore desktop state on resize
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 768) {
+      const navBar = document.querySelector('.nav-bar');
+      if (navBar) navBar.classList.remove('nav-open');
+    }
+  });
+})();
+
+/* ─────────────────────────────────────────────────────────────
+   Logo click → navigate home (works on every page)
+   ───────────────────────────────────────────────────────────── */
+(function () {
+  function bindLogo() {
+    const logo = document.getElementById('gabs_icon');
+    if (!logo) return;
+    logo.style.cursor = 'pointer';
+    logo.addEventListener('click', () => {
+      window.location.href = 'index.html';
+    });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindLogo);
+  } else {
+    bindLogo();
+  }
 })();
