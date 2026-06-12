@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300&family=Raleway:wght@100;200;300&family=Montserrat:wght@100;200;300&family=Nunito:wght@200;300&family=Lato:wght@100;300&family=Inter:wght@100;200;300&family=Josefin+Sans:wght@100;200;300&family=Quicksand:wght@300&family=Comfortaa:wght@300&family=Outfit:wght@100;200;300&display=swap"
+        rel="stylesheet">
+    <script src="https://kit.fontawesome.com/422f9f51d2.js" crossorigin="anonymous"></script>
+    <title>Mathgabs</title>
+    <link rel="icon" type="image/png" href="images/mathgabs_favicon.png">
+    <link rel="stylesheet" href="style.css?v=19">
+</head>
+
+<body>
+    <div class="top-bar">
+        <header id="title">
+            <img id="gabs_icon" src="images/mathgabs_icon.png" height="60px" width="60px" alt="mathgabs_icon">
+            <h1 id="webname"><big><i>M</i></big><i style="margin-right: 2px">ath</i>g<span
+                    style="color: #00a994">ab</span>s
+            </h1>
+            <button class="search-icon"><i class="fa-solid fa-magnifying-glass"></i></button>
+        </header>
+        <nav class="nav-bar">
+            <ul>
+                <li><a href="index.html" alt="Home"><i class="fa-solid fa-house"></i></a></li>
+                <li class="active"><a href="ode.html" alt="ODE">ODE</a></li>
+                <li><a href="plots.html">Plots</a></li>
+                <li><a href="circuits.html">Circuits</a></li>
+                <li><a href="About.html">About</a></li>
+            </ul>
+            <ul id="social-links">
+                <li><a href="games.html" style="color: rgb(0, 255, 238)"><i class="fa-solid fa-gamepad"></i></a></li>
+                <li><a href="https://ko-fi.com/anonymousdevilliers" style="color: rgb(255, 201, 126)"><i
+                            class="fa-solid fa-mug-hot"></i></a></li>
+                <li><a href="https://www.youtube.com/@Math-gabs" style="color: #ff2a2a"><i
+                            class="fa-brands fa-youtube"></i></a></li>
+                <li><a id="heart" href="support.html" style="color: #00ffe1"><i class="fa-solid fa-heart"></i></a></li>
+            </ul>
+        </nav>
+    </div>
+    <main class="solver-main">
+        <h2 class="solver-title"><i>Math</i> / <span style="color:#00a994">ODE</span> SOLVER</h2>
+        <div class="ode-input-row">
+            <div class="ode-input-container">
+                <textarea id="ode" rows="1" wrap="off"></textarea>
+                <textarea id="math" rows="1" wrap="off" style="display: none;"></textarea>
+                <div id="ode-math-overlay" class="ode-math-overlay"></div>
+                <div id="ode-scroll-indicator" class="ode-scroll-indicator"></div>
+            </div>
+            <div class="ode-btn-group">
+                <div class="ode-btn-row">
+                    <button class="solve-btn" onclick="getEquation()" alt="Solve"><i
+                            class="fa-solid fa-equals"></i></button>
+                    <button class="clear-btn" onclick="clearSolution()" alt="Clear"><i
+                            class="fa-solid fa-eraser"></i></button>
+                </div>
+                <div class="ode-btn-row">
+                    <button class="tools-btn" onclick="toggleToolKit()"><i class="fa-solid fa-gear"></i></button>
+                    <button class="info-btn" onclick="toggleInfo()" id="info-btn"><i
+                            class="fa-solid fa-info"></i></button>
+                </div>
+            </div>
+        </div>
+        <div class="tool-kit" id="tools">
+            <div class="mode-toggle-row">
+                <button type="button" class="mode-btn active" id="mode-ode" onclick="setMode('ode')"><span
+                        class="indicator-dot"></span>ODE</button>
+                <button type="button" class="mode-btn" id="mode-math" onclick="setMode('math')"><span
+                        class="indicator-dot"></span>MATH</button>
+                <button type="button" class="mode-btn" id="fx-btn" onclick="toggleFunctionsPanel()"><span
+                        class="indicator-dot" id="fx-dot"></span><span id="fx-label"></span></button>
+                <button type="button" class="mode-btn" onclick="laTeXDisplay('x')"><span id="var-x"></span></button>
+                <button type="button" class="mode-btn" onclick="laTeXDisplay('y')"><span id="var-y"></span></button>
+                <button type="button" class="mode-btn" onclick="toolkitBackspace()"><span
+                        id="clear-label"></span></button>
+                <button type="button" class="mode-btn" id="more-btn" onclick="toggleMoreFunctions()"><span
+                        class="indicator-dot" id="more-dot"></span><i class="fa-solid fa-ellipsis"></i></button>
+            </div>
+            <div class="functions-panel" id="functions-panel" style="display: none;">
+                <!-- Row 1 -->
+                <button class="fun-btn" type="button" onClick="laTeXDisplay('sin')"><span id="fun_sin"></span></button>
+                <button class="fun-btn" type="button" onClick="laTeXDisplay('cos')"><span id="fun_cos"></span></button>
+                <button class="fun-btn" type="button" onClick="laTeXDisplay('tan')"><span id="fun_tan"></span></button>
+                <button class="fun-btn" type="button" onClick="laTeXDisplay('ln')"><span id="fun_ln"></span></button>
+                <!-- Row 2 -->
+                <button class="fun-btn" type="button" onClick="laTeXDisplay('asin')"><span
+                        id="fun_asin"></span></button>
+                <button class="fun-btn" type="button" onClick="laTeXDisplay('acos')"><span
+                        id="fun_acos"></span></button>
+                <button class="fun-btn" type="button" onClick="laTeXDisplay('atan')"><span
+                        id="fun_atan"></span></button>
+                <button class="fun-btn" type="button" onClick="laTeXDisplay('log')"><span id="fun_log"></span></button>
+                <!-- Row 3 -->
+                <button class="fun-btn" type="button" onClick="laTeXDisplay('sinh')"><span
+                        id="fun_sinh"></span></button>
+                <button class="fun-btn" type="button" onClick="laTeXDisplay('cosh')"><span
+                        id="fun_cosh"></span></button>
+                <button class="fun-btn" type="button" onClick="laTeXDisplay('tanh')"><span
+                        id="fun_tanh"></span></button>
+                <button class="fun-btn" type="button" onClick="laTeXDisplay('exp')"><span id="fun_exp"></span></button>
+            </div>
+            <div class="more-panel" id="more-panel" style="display: none;">
+                <button type="button" class="mode-btn more-symbol-btn" id="sym-complex"
+                    onclick="setSymbolMode('complex')"><span class="indicator-dot"></span><span
+                        id="sym_complex"></span></button>
+                <button type="button" class="mode-btn more-symbol-btn" id="sym-vector"
+                    onclick="setSymbolMode('vector')"><span class="indicator-dot"></span><span
+                        id="sym_vector"></span></button>
+                <button type="button" class="mode-btn more-symbol-btn" id="sym-matrix"
+                    onclick="setSymbolMode('matrix')"><span class="indicator-dot"></span><span
+                        id="sym_matrix"></span></button>
+            </div>
+
+            <div class="symbol-subpanel" id="panel-complex" style="display: none;">
+                <button type="button" class="subpanel-btn" id="btn-complex-conj"
+                    onclick="insertSymbolOp('conjugate')">Conjugate</button>
+                <button type="button" class="subpanel-btn" id="btn-complex-mod"
+                    onclick="insertSymbolOp('abs')">Modulus</button>
+                <button type="button" class="subpanel-btn" id="btn-complex-arg"
+                    onclick="insertSymbolOp('arg')">Argument</button>
+                <button type="button" class="subpanel-btn" id="btn-complex-real"
+                    onclick="insertSymbolOp('realpart')">Real Part</button>
+                <button type="button" class="subpanel-btn" id="btn-complex-imag"
+                    onclick="insertSymbolOp('imagpart')">Imag Part</button>
+                <button type="button" class="subpanel-btn" id="btn-complex-polar"
+                    onclick="insertSymbolOp('polarform')">Polar</button>
+                <button type="button" class="subpanel-btn" id="btn-complex-rect"
+                    onclick="insertSymbolOp('rectform')">Rectangular</button>
+            </div>
+
+            <div class="symbol-subpanel" id="panel-vector" style="display: none;">
+                <button type="button" class="subpanel-btn" id="btn-vector-1x3" onclick="insertSymbolOp('vector')">Vector
+                    (1x3)</button>
+                <button type="button" class="subpanel-btn" id="btn-vector-dot" onclick="insertSymbolOp('dot')">Dot
+                    Product</button>
+                <button type="button" class="subpanel-btn" id="btn-vector-cross" onclick="insertSymbolOp('cross')">Cross
+                    Product</button>
+                <button type="button" class="subpanel-btn" id="btn-vector-mag"
+                    onclick="insertSymbolOp('mag')">Magnitude</button>
+                <button type="button" class="subpanel-btn" id="btn-vector-normalize"
+                    onclick="insertSymbolOp('normalize')">Normalize</button>
+                <button type="button" class="subpanel-btn" id="btn-vector-angle"
+                    onclick="insertSymbolOp('angle')">Angle</button>
+            </div>
+
+            <div class="symbol-subpanel" id="panel-matrix" style="display: none;">
+                <button type="button" class="subpanel-btn" id="btn-matrix-template"
+                    onclick="insertSymbolOp('matrix_template')">Matrix</button>
+                <button type="button" class="subpanel-btn" id="btn-matrix-transpose"
+                    onclick="insertSymbolOp('transpose')">Transpose</button>
+                <button type="button" class="subpanel-btn" id="btn-matrix-det"
+                    onclick="insertSymbolOp('det')">Determinant</button>
+                <button type="button" class="subpanel-btn" id="btn-matrix-inverse"
+                    onclick="insertSymbolOp('inverse')">Inverse</button>
+                <button type="button" class="subpanel-btn" id="btn-matrix-identity"
+                    onclick="insertSymbolOp('identity')">Identity</button>
+                <button type="button" class="subpanel-btn" id="btn-matrix-null"
+                    onclick="insertSymbolOp('null')">Null</button>
+                <button type="button" class="subpanel-btn" id="btn-matrix-eigenvalues"
+                    onclick="insertSymbolOp('eigenvalues')">Eigenvalues</button>
+                <button type="button" class="subpanel-btn" id="btn-matrix-eigenvectors"
+                    onclick="insertSymbolOp('eigenvectors')">Eigenvectors</button>
+                <button type="button" class="subpanel-btn" id="btn-matrix-rref"
+                    onclick="insertSymbolOp('rref')">RREF</button>
+                <button type="button" class="subpanel-btn" id="btn-matrix-basis"
+                    onclick="insertSymbolOp('basis')">Basis</button>
+            </div>
+
+
+            <div class="toolkit-grids-container">
+                <div class="numbers-grid">
+                    <!-- Row 1 -->
+                    <button class="num-btn" onClick="laTeXDisplay('7')"><span id="num7"></span></button>
+                    <button class="num-btn" onClick="laTeXDisplay('8')"><span id="num8"></span></button>
+                    <button class="num-btn" onClick="laTeXDisplay('9')"><span id="num9"></span></button>
+                    <!-- Row 2 -->
+                    <button class="num-btn" onClick="laTeXDisplay('4')"><span id="num4"></span></button>
+                    <button class="num-btn" onClick="laTeXDisplay('5')"><span id="num5"></span></button>
+                    <button class="num-btn" onClick="laTeXDisplay('6')"><span id="num6"></span></button>
+                    <!-- Row 3 -->
+                    <button class="num-btn" onClick="laTeXDisplay('1')"><span id="num1"></span></button>
+                    <button class="num-btn" onClick="laTeXDisplay('2')"><span id="num2"></span></button>
+                    <button class="num-btn" onClick="laTeXDisplay('3')"><span id="num3"></span></button>
+                    <!-- Row 4 -->
+                    <button class="num-btn" onClick="laTeXDisplay('0')"><span id="num0"></span></button>
+                    <button class="num-btn" onClick="laTeXDisplay('.')"><span id="dot"></span></button>
+                    <button class="num-btn" onClick="laTeXDisplay('=')"><span id="equals"></span></button>
+                </div>
+                <div class="operators-grid">
+                    <!-- Row 1 -->
+                    <button class="op-btn" onClick="laTeXDisplay('int')"><span id="integral"></span></button>
+                    <button class="op-btn" onClick="laTeXDisplay('diff')"><span id="derivative"></span></button>
+                    <button class="op-btn" onClick="laTeXDisplay('intab')"><span id="def_integral"></span></button>
+                    <button class="op-btn" onClick="laTeXDisplay('diffn')"><span id="order_derivative"></span></button>
+                    <!-- Row 2 -->
+                    <button class="op-btn" onClick="laTeXDisplay('limit')"><span id="limit"></span></button>
+                    <button class="op-btn" onClick="laTeXDisplay('sum')"><span id="sum"></span></button>
+                    <button class="op-btn" onClick="laTeXDisplay('prod')"><span id="product"></span></button>
+                    <button class="op-btn" onClick="laTeXDisplay('sqrt')"><span id="sqrt"></span></button>
+                    <!-- Row 3 -->
+                    <button class="op-btn" onClick="laTeXDisplay('nrt')"><span id="nrt"></span></button>
+                    <button class="op-btn" onClick="laTeXDisplay('abs')"><span id="abs"></span></button>
+                    <button class="op-btn" onClick="laTeXDisplay('fact')"><span id="fact"></span></button>
+                    <button class="op-btn" onClick="laTeXDisplay('by')"><span id="by"></span></button>
+                    <!-- Row 4 -->
+                    <button class="op-btn" onClick="laTeXDisplay('+')"><span id="plus"></span></button>
+                    <button class="op-btn" onClick="laTeXDisplay('-')"><span id="minus"></span></button>
+                    <button class="op-btn" onClick="laTeXDisplay('*')"><span id="times"></span></button>
+                    <button class="op-btn" onClick="laTeXDisplay('/')"><span id="divide"></span></button>
+                </div>
+            </div>
+        </div>
+        <div class="info-section" id="info" style="display:none;">
+            <button class="info-close-btn" onclick="toggleInfo()" title="Close">&#x2715;</button>
+            <h2 class="info-title">Getting Started with the Solver</h2>
+            <div class="info-body">
+                <p>
+                    Hi Math-ants<img src="images/ant.png" height="15px" , width="20px">! Enter your equation in the
+                    input box and press
+                    <span class="info-chip info-chip-solve"><i class="fa-solid fa-equals"></i></span>
+                    to get the result.
+                </p>
+                <p>
+                    By default the solver expects an <strong>ODE</strong>. If you're solving a general math
+                    expression, <br>click
+                    <span class="info-chip info-chip-tools"><i class="fa-solid fa-gear"></i></span>
+                    to open the toolkit and switch to <strong>MATH</strong> mode first.
+                </p>
+                <p>
+                    For <strong>initial value problems</strong>, separate your conditions with <code>;</code><br>
+                    For example: <code class="info-code">dy/dx = x ; y(0) = 1</code>
+                    then press
+                    <span class="info-chip info-chip-solve"><i class="fa-solid fa-equals"></i></span>.
+                </p>
+                <p class="info-teaser">
+                    <i class="fa-solid fa-chart-line"></i>
+                    Phase plots will soon be available to the right of the solution panel — stay tuned!
+                </p>
+            </div>
+        </div>
+        <div class="panel-tab-row" id="panelTabRow" style="display:none;">
+            <button class="panel-tab-btn active" id="solutionToggle" onclick="togglePanel('solution')">Solution</button>
+            <button class="panel-tab-btn active" id="plotToggle" onclick="togglePanel('plot')">Plot</button>
+            <button class="panel-tab-btn" id="savedToggle" onclick="toggleSavedPanel()">Saved</button>
+        </div>
+        <div class="output-row" id="outputRow" style="display:none;">
+            <div class="output-panel" id="solutionPanel">
+                <div class="output-panel-title">Solution</div>
+                <div id="solution"></div>
+            </div>
+            <div class="panel-resizer" id="panelResizer"></div>
+            <div class="output-panel" id="plotPanel">
+                <div class="output-panel-title">Plot</div>
+                <div id="plots"></div>
+            </div>
+            <div class="panel-resizer" id="panelResizer2" style="display: none;"></div>
+            <div class="output-panel" id="savedPanel" style="display: none;">
+                <div class="output-panel-title"
+                    style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Saved Solutions</span>
+                    <button class="clear-history-btn" onclick="clearHistory()"><i
+                            class="fa-solid fa-eraser"></i></button>
+                </div>
+                <div id="savedSolutionsList" style="padding: 14px 16px; overflow-y: auto; flex: 1;"></div>
+            </div>
+        </div>
+    </main>
+    <div class="verse">"Cæli enarrant gloriam Dei, et opera manuum ejus annuntiat firmamentum."</div>
+    <script type="importmap">
+    {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/",
+          "three/examples/jsm/controls/OrbitControls": "https://cdn.jsdelivr.net/npm/three@0.132.2/examples/jsm/controls/OrbitControls.js"
+        }
+    }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/nerdamer@1.1.13/nerdamer.core.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/nerdamer@1.1.13/Algebra.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/nerdamer@1.1.13/Calculus.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/nerdamer@1.1.13/Solve.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/nerdamer@1.1.13/Extra.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjs@13.2.0/lib/browser/math.js"></script>
+    <script src="xy_checkReplace.js?v=10"></script>
+    <script src="katexFormat.js?v=10"></script>
+    <script src="main.js?v=28"></script>
+    <script src="helpPanel.js"></script>
+</body>
+
+</html>
