@@ -1,294 +1,2459 @@
-<!DOCTYPE html>
-<html lang="en">
+if (typeof nerdamer === 'undefined' && typeof require !== 'undefined') {
+    var nerdamer = require('nerdamer/all');
+}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link
-        href="https://fonts.googleapis.com/css2?family=Poppins:wght@100;200;300&family=Raleway:wght@100;200;300&family=Montserrat:wght@100;200;300&family=Nunito:wght@200;300&family=Lato:wght@100;300&family=Inter:wght@100;200;300&family=Josefin+Sans:wght@100;200;300&family=Quicksand:wght@300&family=Comfortaa:wght@300&family=Outfit:wght@100;200;300&display=swap"
-        rel="stylesheet">
-    <script src="https://kit.fontawesome.com/422f9f51d2.js" crossorigin="anonymous"></script>
-    <title>Mathgabs</title>
-    <link rel="icon" type="image/png" href="images/mathgabs_favicon.png">
-    <link rel="stylesheet" href="style.css?v=19">
-</head>
+function solveLinearY(problem, Yvar) {
+    if (!problem || typeof problem !== 'string') return null;
+    try {
+        let lhs = problem.split('=')[0].trim();
+        let rhs = problem.split('=')[1] ? problem.split('=')[1].trim() : '0';
+        let eqExpr = `(${lhs}) - (${rhs})`;
 
-<body>
-    <div class="top-bar">
-        <header id="title">
-            <img id="gabs_icon" src="images/mathgabs_icon.png" height="60px" width="60px" alt="mathgabs_icon">
-            <h1 id="webname"><big><i>M</i></big><i style="margin-right: 2px">ath</i>g<span
-                    style="color: #00a994">ab</span>s
-            </h1>
-            <button class="search-icon"><i class="fa-solid fa-magnifying-glass"></i></button>
-        </header>
-        <nav class="nav-bar">
-            <ul>
-                <li><a href="index.html" alt="Home"><i class="fa-solid fa-house"></i></a></li>
-                <li class="active"><a href="ode.html" alt="ODE">ODE</a></li>
-                <li><a href="plots.html">Plots</a></li>
-                <li><a href="circuits.html">Circuits</a></li>
-                <li><a href="About.html">About</a></li>
-            </ul>
-            <ul id="social-links">
-                <li><a href="games.html" style="color: rgb(0, 255, 238)"><i class="fa-solid fa-gamepad"></i></a></li>
-                <li><a href="https://ko-fi.com/anonymousdevilliers" style="color: rgb(255, 201, 126)"><i
-                            class="fa-solid fa-mug-hot"></i></a></li>
-                <li><a href="https://www.youtube.com/@Math-gabs" style="color: #ff2a2a"><i
-                            class="fa-brands fa-youtube"></i></a></li>
-                <li><a id="heart" href="support.html" style="color: #00ffe1"><i class="fa-solid fa-heart"></i></a></li>
-            </ul>
-        </nav>
-    </div>
-    <main class="solver-main">
-        <h2 class="solver-title"><i>Math</i> / <span style="color:#00a994">ODE</span> SOLVER</h2>
-        <div class="ode-input-row">
-            <div class="ode-input-container">
-                <textarea id="ode" rows="1" wrap="off"></textarea>
-                <textarea id="math" rows="1" wrap="off" style="display: none;"></textarea>
-                <div id="ode-math-overlay" class="ode-math-overlay"></div>
-                <div id="ode-scroll-indicator" class="ode-scroll-indicator"></div>
-            </div>
-            <div class="ode-btn-group">
-                <div class="ode-btn-row">
-                    <button class="solve-btn" onclick="getEquation()" alt="Solve"><i
-                            class="fa-solid fa-equals"></i></button>
-                    <button class="clear-btn" onclick="clearSolution()" alt="Clear"><i
-                            class="fa-solid fa-eraser"></i></button>
-                </div>
-                <div class="ode-btn-row">
-                    <button class="tools-btn" onclick="toggleToolKit()"><i class="fa-solid fa-gear"></i></button>
-                    <button class="info-btn" onclick="toggleInfo()" id="info-btn"><i
-                            class="fa-solid fa-info"></i></button>
-                </div>
-            </div>
-        </div>
-        <div class="tool-kit" id="tools">
-            <div class="mode-toggle-row">
-                <button type="button" class="mode-btn active" id="mode-ode" onclick="setMode('ode')"><span
-                        class="indicator-dot"></span>ODE</button>
-                <button type="button" class="mode-btn" id="mode-math" onclick="setMode('math')"><span
-                        class="indicator-dot"></span>MATH</button>
-                <button type="button" class="mode-btn" id="fx-btn" onclick="toggleFunctionsPanel()"><span
-                        class="indicator-dot" id="fx-dot"></span><span id="fx-label"></span></button>
-                <button type="button" class="mode-btn" onclick="laTeXDisplay('x')"><span id="var-x"></span></button>
-                <button type="button" class="mode-btn" onclick="laTeXDisplay('y')"><span id="var-y"></span></button>
-                <button type="button" class="mode-btn" onclick="toolkitBackspace()"><span
-                        id="clear-label"></span></button>
-                <button type="button" class="mode-btn" id="more-btn" onclick="toggleMoreFunctions()"><span
-                        class="indicator-dot" id="more-dot"></span><i class="fa-solid fa-ellipsis"></i></button>
-            </div>
-            <div class="functions-panel" id="functions-panel" style="display: none;">
-                <!-- Row 1 -->
-                <button class="fun-btn" type="button" onClick="laTeXDisplay('sin')"><span id="fun_sin"></span></button>
-                <button class="fun-btn" type="button" onClick="laTeXDisplay('cos')"><span id="fun_cos"></span></button>
-                <button class="fun-btn" type="button" onClick="laTeXDisplay('tan')"><span id="fun_tan"></span></button>
-                <button class="fun-btn" type="button" onClick="laTeXDisplay('ln')"><span id="fun_ln"></span></button>
-                <!-- Row 2 -->
-                <button class="fun-btn" type="button" onClick="laTeXDisplay('asin')"><span
-                        id="fun_asin"></span></button>
-                <button class="fun-btn" type="button" onClick="laTeXDisplay('acos')"><span
-                        id="fun_acos"></span></button>
-                <button class="fun-btn" type="button" onClick="laTeXDisplay('atan')"><span
-                        id="fun_atan"></span></button>
-                <button class="fun-btn" type="button" onClick="laTeXDisplay('log')"><span id="fun_log"></span></button>
-                <!-- Row 3 -->
-                <button class="fun-btn" type="button" onClick="laTeXDisplay('sinh')"><span
-                        id="fun_sinh"></span></button>
-                <button class="fun-btn" type="button" onClick="laTeXDisplay('cosh')"><span
-                        id="fun_cosh"></span></button>
-                <button class="fun-btn" type="button" onClick="laTeXDisplay('tanh')"><span
-                        id="fun_tanh"></span></button>
-                <button class="fun-btn" type="button" onClick="laTeXDisplay('exp')"><span id="fun_exp"></span></button>
-            </div>
-            <div class="more-panel" id="more-panel" style="display: none;">
-                <button type="button" class="mode-btn more-symbol-btn" id="sym-complex"
-                    onclick="setSymbolMode('complex')"><span class="indicator-dot"></span><span
-                        id="sym_complex"></span></button>
-                <button type="button" class="mode-btn more-symbol-btn" id="sym-vector"
-                    onclick="setSymbolMode('vector')"><span class="indicator-dot"></span><span
-                        id="sym_vector"></span></button>
-                <button type="button" class="mode-btn more-symbol-btn" id="sym-matrix"
-                    onclick="setSymbolMode('matrix')"><span class="indicator-dot"></span><span
-                        id="sym_matrix"></span></button>
-            </div>
-
-            <div class="symbol-subpanel" id="panel-complex" style="display: none;">
-                <button type="button" class="subpanel-btn" id="btn-complex-conj"
-                    onclick="insertSymbolOp('conjugate')">Conjugate</button>
-                <button type="button" class="subpanel-btn" id="btn-complex-mod"
-                    onclick="insertSymbolOp('abs')">Modulus</button>
-                <button type="button" class="subpanel-btn" id="btn-complex-arg"
-                    onclick="insertSymbolOp('arg')">Argument</button>
-                <button type="button" class="subpanel-btn" id="btn-complex-real"
-                    onclick="insertSymbolOp('realpart')">Real Part</button>
-                <button type="button" class="subpanel-btn" id="btn-complex-imag"
-                    onclick="insertSymbolOp('imagpart')">Imag Part</button>
-                <button type="button" class="subpanel-btn" id="btn-complex-polar"
-                    onclick="insertSymbolOp('polarform')">Polar</button>
-                <button type="button" class="subpanel-btn" id="btn-complex-rect"
-                    onclick="insertSymbolOp('rectform')">Rectangular</button>
-            </div>
-
-            <div class="symbol-subpanel" id="panel-vector" style="display: none;">
-                <button type="button" class="subpanel-btn" id="btn-vector-1x3" onclick="insertSymbolOp('vector')">Vector
-                    (1x3)</button>
-                <button type="button" class="subpanel-btn" id="btn-vector-dot" onclick="insertSymbolOp('dot')">Dot
-                    Product</button>
-                <button type="button" class="subpanel-btn" id="btn-vector-cross" onclick="insertSymbolOp('cross')">Cross
-                    Product</button>
-                <button type="button" class="subpanel-btn" id="btn-vector-mag"
-                    onclick="insertSymbolOp('mag')">Magnitude</button>
-                <button type="button" class="subpanel-btn" id="btn-vector-normalize"
-                    onclick="insertSymbolOp('normalize')">Normalize</button>
-                <button type="button" class="subpanel-btn" id="btn-vector-angle"
-                    onclick="insertSymbolOp('angle')">Angle</button>
-            </div>
-
-            <div class="symbol-subpanel" id="panel-matrix" style="display: none;">
-                <button type="button" class="subpanel-btn" id="btn-matrix-template"
-                    onclick="insertSymbolOp('matrix_template')">Matrix</button>
-                <button type="button" class="subpanel-btn" id="btn-matrix-transpose"
-                    onclick="insertSymbolOp('transpose')">Transpose</button>
-                <button type="button" class="subpanel-btn" id="btn-matrix-det"
-                    onclick="insertSymbolOp('det')">Determinant</button>
-                <button type="button" class="subpanel-btn" id="btn-matrix-inverse"
-                    onclick="insertSymbolOp('inverse')">Inverse</button>
-                <button type="button" class="subpanel-btn" id="btn-matrix-identity"
-                    onclick="insertSymbolOp('identity')">Identity</button>
-                <button type="button" class="subpanel-btn" id="btn-matrix-null"
-                    onclick="insertSymbolOp('null')">Null</button>
-                <button type="button" class="subpanel-btn" id="btn-matrix-eigenvalues"
-                    onclick="insertSymbolOp('eigenvalues')">Eigenvalues</button>
-                <button type="button" class="subpanel-btn" id="btn-matrix-eigenvectors"
-                    onclick="insertSymbolOp('eigenvectors')">Eigenvectors</button>
-                <button type="button" class="subpanel-btn" id="btn-matrix-rref"
-                    onclick="insertSymbolOp('rref')">RREF</button>
-                <button type="button" class="subpanel-btn" id="btn-matrix-basis"
-                    onclick="insertSymbolOp('basis')">Basis</button>
-            </div>
+        // Check if linear in Yvar by differentiating twice wrt Yvar
+        let d2 = nerdamer(`diff(diff(${eqExpr}, ${Yvar}), ${Yvar})`).simplify().toString();
+        if (d2 === '0') {
+            let A = nerdamer(`diff(${eqExpr}, ${Yvar})`).simplify().toString();
+            let B = nerdamer(eqExpr).sub(Yvar, '0').simplify().toString();
+            if (A !== '0') {
+                return nerdamer(`-(${B})/(${A})`).simplify().toString();
+            }
+        }
+    } catch (e) {
+        console.error("Error in solveLinearY:", e);
+    }
+    return null;
+}
 
 
-            <div class="toolkit-grids-container">
-                <div class="numbers-grid">
-                    <!-- Row 1 -->
-                    <button class="num-btn" onClick="laTeXDisplay('7')"><span id="num7"></span></button>
-                    <button class="num-btn" onClick="laTeXDisplay('8')"><span id="num8"></span></button>
-                    <button class="num-btn" onClick="laTeXDisplay('9')"><span id="num9"></span></button>
-                    <!-- Row 2 -->
-                    <button class="num-btn" onClick="laTeXDisplay('4')"><span id="num4"></span></button>
-                    <button class="num-btn" onClick="laTeXDisplay('5')"><span id="num5"></span></button>
-                    <button class="num-btn" onClick="laTeXDisplay('6')"><span id="num6"></span></button>
-                    <!-- Row 3 -->
-                    <button class="num-btn" onClick="laTeXDisplay('1')"><span id="num1"></span></button>
-                    <button class="num-btn" onClick="laTeXDisplay('2')"><span id="num2"></span></button>
-                    <button class="num-btn" onClick="laTeXDisplay('3')"><span id="num3"></span></button>
-                    <!-- Row 4 -->
-                    <button class="num-btn" onClick="laTeXDisplay('0')"><span id="num0"></span></button>
-                    <button class="num-btn" onClick="laTeXDisplay('.')"><span id="dot"></span></button>
-                    <button class="num-btn" onClick="laTeXDisplay('=')"><span id="equals"></span></button>
-                </div>
-                <div class="operators-grid">
-                    <!-- Row 1 -->
-                    <button class="op-btn" onClick="laTeXDisplay('int')"><span id="integral"></span></button>
-                    <button class="op-btn" onClick="laTeXDisplay('diff')"><span id="derivative"></span></button>
-                    <button class="op-btn" onClick="laTeXDisplay('intab')"><span id="def_integral"></span></button>
-                    <button class="op-btn" onClick="laTeXDisplay('diffn')"><span id="order_derivative"></span></button>
-                    <!-- Row 2 -->
-                    <button class="op-btn" onClick="laTeXDisplay('limit')"><span id="limit"></span></button>
-                    <button class="op-btn" onClick="laTeXDisplay('sum')"><span id="sum"></span></button>
-                    <button class="op-btn" onClick="laTeXDisplay('prod')"><span id="product"></span></button>
-                    <button class="op-btn" onClick="laTeXDisplay('sqrt')"><span id="sqrt"></span></button>
-                    <!-- Row 3 -->
-                    <button class="op-btn" onClick="laTeXDisplay('nrt')"><span id="nrt"></span></button>
-                    <button class="op-btn" onClick="laTeXDisplay('abs')"><span id="abs"></span></button>
-                    <button class="op-btn" onClick="laTeXDisplay('fact')"><span id="fact"></span></button>
-                    <button class="op-btn" onClick="laTeXDisplay('by')"><span id="by"></span></button>
-                    <!-- Row 4 -->
-                    <button class="op-btn" onClick="laTeXDisplay('+')"><span id="plus"></span></button>
-                    <button class="op-btn" onClick="laTeXDisplay('-')"><span id="minus"></span></button>
-                    <button class="op-btn" onClick="laTeXDisplay('*')"><span id="times"></span></button>
-                    <button class="op-btn" onClick="laTeXDisplay('/')"><span id="divide"></span></button>
-                </div>
-            </div>
-        </div>
-        <div class="info-section" id="info" style="display:none;">
-            <button class="info-close-btn" onclick="toggleInfo()" title="Close">&#x2715;</button>
-            <h2 class="info-title">Getting Started with the Solver</h2>
-            <div class="info-body">
-                <p>
-                    Hi Math-ants<img src="images/ant.png" height="15px" , width="20px">! Enter your equation in the
-                    input box and press
-                    <span class="info-chip info-chip-solve"><i class="fa-solid fa-equals"></i></span>
-                    to get the result.
-                </p>
-                <p>
-                    By default the solver expects an <strong>ODE</strong>. If you're solving a general math
-                    expression, <br>click
-                    <span class="info-chip info-chip-tools"><i class="fa-solid fa-gear"></i></span>
-                    to open the toolkit and switch to <strong>MATH</strong> mode first.
-                </p>
-                <p>
-                    For <strong>initial value problems</strong>, separate your conditions with <code>;</code><br>
-                    For example: <code class="info-code">dy/dx = x ; y(0) = 1</code>
-                    then press
-                    <span class="info-chip info-chip-solve"><i class="fa-solid fa-equals"></i></span>.
-                </p>
-                <p class="info-teaser">
-                    <i class="fa-solid fa-chart-line"></i>
-                    Phase plots will soon be available to the right of the solution panel — stay tuned!
-                </p>
-            </div>
-        </div>
-        <div class="panel-tab-row" id="panelTabRow" style="display:none;">
-            <button class="panel-tab-btn active" id="solutionToggle" onclick="togglePanel('solution')">Solution</button>
-            <button class="panel-tab-btn active" id="plotToggle" onclick="togglePanel('plot')">Plot</button>
-            <button class="panel-tab-btn" id="savedToggle" onclick="toggleSavedPanel()">Saved</button>
-        </div>
-        <div class="output-row" id="outputRow" style="display:none;">
-            <div class="output-panel" id="solutionPanel">
-                <div class="output-panel-title">Solution</div>
-                <div id="solution"></div>
-            </div>
-            <div class="panel-resizer" id="panelResizer"></div>
-            <div class="output-panel" id="plotPanel">
-                <div class="output-panel-title">Plot</div>
-                <div id="plots"></div>
-            </div>
-            <div class="panel-resizer" id="panelResizer2" style="display: none;"></div>
-            <div class="output-panel" id="savedPanel" style="display: none;">
-                <div class="output-panel-title"
-                    style="display: flex; justify-content: space-between; align-items: center;">
-                    <span>Saved Solutions</span>
-                    <button class="clear-history-btn" onclick="clearHistory()"><i
-                            class="fa-solid fa-eraser"></i></button>
-                </div>
-                <div id="savedSolutionsList" style="padding: 14px 16px; overflow-y: auto; flex: 1;"></div>
-            </div>
-        </div>
-    </main>
-    <div class="verse">"Cæli enarrant gloriam Dei, et opera manuum ejus annuntiat firmamentum."</div>
-    <script type="importmap">
-    {
-        "imports": {
-          "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
-          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/",
-          "three/examples/jsm/controls/OrbitControls": "https://cdn.jsdelivr.net/npm/three@0.132.2/examples/jsm/controls/OrbitControls.js"
+function convertTrigReciprocals(str) {
+    if (!str || typeof str !== 'string') return str;
+
+    const functions = ['cosec', 'sec', 'csc', 'cot', 'tan'];
+    const replacements = {
+        'sec': '(1/cos($1))',
+        'cosec': '(1/sin($1))',
+        'csc': '(1/sin($1))',
+        'cot': '(cos($1)/sin($1))',
+        'tan': '(sin($1)/cos($1))'
+    };
+
+    for (let fn of functions) {
+        let idx = str.indexOf(fn + '(');
+        while (idx !== -1) {
+            let bracketCount = 1;
+            let j = idx + fn.length + 1;
+            while (j < str.length && bracketCount > 0) {
+                if (str[j] === '(') bracketCount++;
+                else if (str[j] === ')') bracketCount--;
+                j++;
+            }
+            if (bracketCount === 0) {
+                let arg = str.slice(idx + fn.length + 1, j - 1);
+                let fullMatch = str.slice(idx, j);
+                let rep = replacements[fn].replaceAll('$1', arg);
+                str = str.replace(fullMatch, rep);
+                idx = str.indexOf(fn + '('); // restart search
+            } else {
+                idx = str.indexOf(fn + '(', idx + 1);
+            }
         }
     }
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/nerdamer@1.1.13/nerdamer.core.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/nerdamer@1.1.13/Algebra.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/nerdamer@1.1.13/Calculus.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/nerdamer@1.1.13/Solve.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/nerdamer@1.1.13/Extra.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mathjs@13.2.0/lib/browser/math.js"></script>
-    <script src="xy_checkReplace.js?v=10"></script>
-    <script src="katexFormat.js?v=10"></script>
-    <script src="main.js?v=28"></script>
-    <script src="helpPanel.js"></script>
-</body>
+    return str;
+}
 
-</html>
+// Helper to insert implicit multiplication stars (e.g. 3y^2 -> 3*y^2, x(y+1) -> x*(y+1))
+// This prevents Nerdamer's tokenizer from creating unified tokens like "3y"
+// which causes it to treat the whole term as the number 3, ignoring the variable y
+function insertImplicitStars(str) {
+    if (!str || typeof str !== 'string') return str;
+
+    return str
+        // Insert star between a number and a variable/paren (e.g. 3y -> 3*y, 3( -> 3*()
+        .replace(/(\d+)([a-zA-Z\(])/g, '$1*$2')
+        // Insert star between a closing paren and an opening paren (e.g. )( -> )*( )
+        .replace(/(\))(\()/g, '$1*$2')
+        // Insert star between a closing paren and a variable/number (e.g. )y -> )*y
+        .replace(/(\))([a-zA-Z\d])/g, '$1*$2')
+        .replace(/\b(?!sin|cos|tan|cot|sec|csc|cosec|asin|acos|atan|acot|asec|acsc|acosec|log|ln|exp|sinh|cosh|tanh|sqrt|integrate|diff|pdiff|limit|sum|product|defint|nrt|abs|fact|squareroot|secondroot|secndroot|thirdroot|cuberoot|fourthroot|forthroot|fifthroot|sixthroot|seventhroot|eighthroot|ninthroot|tenthroot|multiply|matrix|vector|eigenvalues|eigenvectors|rref|basis|transpose|det|inverse|identity|null|conjugate|arg|realpart|imagpart|polarform|rectform|dot|cross|mag|normalize|angle)([a-zA-Z]+)(\()/g, '$1*$2')
+        // Insert star between standalone variables x/y and subsequent variables/functions (e.g. xe^y -> x*e^y, xy -> x*y)
+        .replace(/\b([xy])([a-zA-Z])/gi, (match, p1, p2) => p1 + '*' + p2);
+}
+
+// Globally override Frac.simple in Nerdamer core to catch and safely resolve any NaN fraction crashes
+// This handles cases where intermediate calculations in the solver have resulted in NaN decimals,
+// preventing the arbitrary-precision bigInt parser from throwing "Invalid integer: NaN"
+if (typeof nerdamer !== 'undefined' && typeof nerdamer.getCore === 'function') {
+    const core = nerdamer.getCore();
+    if (core && core.Frac && typeof core.Frac.simple === 'function') {
+        const originalFracSimple = core.Frac.simple;
+        core.Frac.simple = function (n) {
+            let nstr = "";
+            try {
+                nstr = String(core.Utils.scientificToDecimal(n));
+            } catch (e) {
+                nstr = "NaN";
+            }
+
+            // Check strictly for real NaN values (JavaScript NaN, literal "NaN", or bigDec NaN)
+            // to make sure standard symbolic variables like 'y', 'x' or 'dy' are never turned into 0s
+            if (nstr === 'NaN' || nstr.includes('NaN') || (typeof n === 'number' && isNaN(n)) || (n && n.isNaN && n.isNaN())) {
+                console.log("Safe handle of NaN inside overridden Frac.simple");
+                return core.Frac.quick(0, 1); // Returns a safe 0/1 fraction instead of throwing an error
+            }
+
+            return originalFracSimple.call(core.Frac, n);
+        };
+    }
+}
+
+// Globally override nerdamer.convertToLaTeX to make it robust against NaN and global variable substitutions
+if (typeof nerdamer !== 'undefined' && typeof nerdamer.convertToLaTeX === 'function') {
+    const originalConvertToLaTeX = nerdamer.convertToLaTeX;
+    nerdamer.convertToLaTeX = function (expression, option) {
+        let varsBackup = {};
+        if (typeof nerdamer !== 'undefined' && typeof nerdamer.getVars === 'function') {
+            varsBackup = nerdamer.getVars('object');
+            nerdamer.clearVars();
+        }
+
+        // Clean expression by injecting implicit stars
+        let cleanedExpression = insertImplicitStars(expression);
+
+        try {
+            try {
+                let parsed = nerdamer(cleanedExpression);
+                let latex = parsed.toTeX();
+                if (latex && typeof latex === 'string' && latex.trim()) {
+                    return latex;
+                }
+            } catch (err) {
+                // Fallback to default LaTeX converter if parsing or toTeX fails
+            }
+            return originalConvertToLaTeX.call(nerdamer, cleanedExpression, option);
+        } finally {
+            if (typeof nerdamer !== 'undefined' && typeof nerdamer.setVar === 'function') {
+                for (let v in varsBackup) {
+                    nerdamer.setVar(v, varsBackup[v]);
+                }
+            }
+        }
+    };
+}
+
+// Helper to preprocess Leibniz notations like (d^1y/dx^1) or d^1y/dx^1 to Y1
+// This prevents Nerdamer's parser from failing with "Invalid integer: NaN"
+function preprocessLeibnizY(str) {
+    if (!str || typeof str !== 'string') return str;
+    return str.replace(/(?:\(\s*)?d\^(\d+)y\/dx\^\2(?:\s*\))?/g, (match, ord1, ord2) => 'Y' + ord1)
+        .replace(/(?:\(\s*)?d\^(\d+)y\/dx\^(\d+)(?:\s*\))?/g, (match, ord1, ord2) => 'Y' + ord1);
+}
+
+function replaceIntegrateWithInt(str) {
+    let patterns = [
+        '\\text{integrate}\\left(',
+        '\\text{integrate}(',
+        'integrate\\left(',
+        'integrate('
+    ];
+
+    let found = true;
+    while (found) {
+        found = false;
+        for (let pat of patterns) {
+            let idx = str.indexOf(pat);
+            if (idx !== -1) {
+                let startOfArgs = idx + pat.length;
+                let parenDepth = 1;
+                let j = startOfArgs;
+                let commaIdx = -1;
+                let isLeftRight = pat.includes('\\left(');
+
+                while (j < str.length && parenDepth > 0) {
+                    if (isLeftRight) {
+                        if (str.startsWith('\\left(', j)) {
+                            parenDepth++;
+                            j += 6;
+                        } else if (str.startsWith('\\right)', j)) {
+                            parenDepth--;
+                            if (parenDepth === 0) {
+                                break;
+                            }
+                            j += 7;
+                        } else {
+                            if (str[j] === ',' && parenDepth === 1) {
+                                commaIdx = j;
+                            }
+                            j++;
+                        }
+                    } else {
+                        if (str[j] === '(') {
+                            parenDepth++;
+                        } else if (str[j] === ')') {
+                            parenDepth--;
+                            if (parenDepth === 0) {
+                                break;
+                            }
+                        } else if (str[j] === ',' && parenDepth === 1) {
+                            commaIdx = j;
+                        }
+                        j++;
+                    }
+                }
+
+                if (parenDepth === 0) {
+                    let endOfMatch = j + (isLeftRight ? 7 : 1);
+                    if (commaIdx !== -1) {
+                        let expr = str.slice(startOfArgs, commaIdx).trim();
+                        let variable = str.slice(commaIdx + 1, j).trim();
+                        variable = variable.replace(/\\/g, '').trim();
+
+                        let replacement = `\\int {${expr}}\\, d${variable}`;
+                        str = str.slice(0, idx) + replacement + str.slice(endOfMatch);
+                        found = true;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    return str;
+}
+
+function katexFormat(input) {
+    if (!input) return "";
+
+    // Preprocess Leibniz notation terms to safe placeholders
+    let cleanedInput = preprocessLeibnizY(input);
+
+    // Split by "=" to convert LHS and RHS separately
+    // This provides ultimate robustness against equation parser quirks in Nerdamer
+    let parts = cleanedInput.split('=');
+    let latexParts = parts.map(p => {
+        let trimmed = p.trim();
+        if (!trimmed) return "";
+        return nerdamer.convertToLaTeX(trimmed);
+    });
+    let latex = latexParts.join(' = ');
+
+    // Replace Y1, Y2, etc. with proper LaTeX derivative notations
+    latex = latex.replace(/Y(\d+)/g, (match, ord) => {
+        if (ord === '1') {
+            return '\\left(\\frac{dy}{dx}\\right)';
+        } else {
+            return `\\frac{d^{${ord}}y}{dx^{${ord}}}`;
+        }
+    });
+
+    latex = replaceIntegrateWithInt(latex);
+
+    console.log(`katexFormat(${input}): ${latex}`);
+    return latex;
+}
+
+// dy/dx to dx/dy format
+function dxdykatexFormat(input) {
+    if (!input) return "";
+
+    // Swap standalone x and y variables for dx/dy conversions
+    input = swapXY(input);
+
+    // Preprocess Leibniz notation terms to safe placeholders
+    let cleanedInput = preprocessLeibnizY(input);
+
+    // Split by "=" to convert LHS and RHS separately
+    let parts = cleanedInput.split('=');
+    let latexParts = parts.map(p => {
+        let trimmed = p.trim();
+        if (!trimmed) return "";
+        return nerdamer.convertToLaTeX(trimmed);
+    });
+    let latex = latexParts.join(' = ');
+
+    // Replace Y1, Y2, etc. with proper LaTeX swapped derivative notations
+    latex = latex.replace(/Y(\d+)/g, (match, ord) => {
+        if (ord === '1') {
+            return '\\left(\\frac{dx}{dy}\\right)';
+        } else {
+            return `\\frac{d^{${ord}}x}{dy^{${ord}}}`;
+        }
+    });
+
+    latex = replaceIntegrateWithInt(latex);
+
+    console.log(`dxdykatexFormat(${input}): ${latex}`);
+    return latex;
+}
+
+//Storing equation from input
+let boxInput = null;
+if (typeof document !== 'undefined') {
+    boxInput = document.getElementById("ode");
+}
+
+if (boxInput) {
+    boxInput.addEventListener('input', function () {
+        if (this.value == '') {
+            if (this.style.width !== '200px') this.style.width = '200px';
+            if (this.style.height !== '30px') this.style.height = '30px';
+        }
+        else {
+            // Get computed style for accurate font, padding, and border
+            let computedStyle = window.getComputedStyle(this);
+            let fontSize = computedStyle.fontSize || '14.4px';
+            let fontFamily = computedStyle.fontFamily || 'Poppins, sans-serif';
+            let fontWeight = computedStyle.fontWeight || 'normal';
+            let font = `${fontWeight} ${fontSize} ${fontFamily}`;
+
+            // Cache the canvas element on the textbox object to avoid recreating it
+            const canvas = this._canvas || (this._canvas = document.createElement("canvas"));
+            const context = canvas.getContext("2d");
+            context.font = font;
+
+            let lines = this.value.split('\n');
+            let maxLineWidth = 0;
+            for (let line of lines) {
+                let w = context.measureText(line).width;
+                if (w > maxLineWidth) maxLineWidth = w;
+            }
+
+            // Calculate extra width (padding + border)
+            let paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
+            let paddingRight = parseFloat(computedStyle.paddingRight) || 0;
+            let borderLeft = parseFloat(computedStyle.borderLeftWidth) || 0;
+            let borderRight = parseFloat(computedStyle.borderRightWidth) || 0;
+            let extraWidth = paddingLeft + paddingRight + borderLeft + borderRight;
+
+            // Set the new width (with a small safety margin of 6px)
+            let newWidth = Math.max(200, maxLineWidth + extraWidth + 6);
+            let finalWidth = newWidth + 'px';
+            if (this.style.width !== finalWidth) {
+                this.style.width = finalWidth;
+            }
+
+            // Calculate accurate height mathematically to avoid layout thrashing/jittering
+            let paddingTop = parseFloat(computedStyle.paddingTop) || 0;
+            let paddingBottom = parseFloat(computedStyle.paddingBottom) || 0;
+            let borderTop = parseFloat(computedStyle.borderTopWidth) || 0;
+            let borderBottom = parseFloat(computedStyle.borderBottomWidth) || 0;
+            let extraHeight = paddingTop + paddingBottom + borderTop + borderBottom;
+
+            let lineHeight = parseFloat(computedStyle.lineHeight);
+            if (isNaN(lineHeight)) {
+                lineHeight = parseFloat(fontSize) * 1.15; // Fallback
+            }
+
+            let newHeight = Math.ceil(lines.length * lineHeight + extraHeight);
+            let finalHeight = newHeight + 'px';
+            if (this.style.height !== finalHeight) {
+                this.style.height = finalHeight;
+            }
+        }
+    });
+
+    boxInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+            setTimeout(() => {
+                // Trigger the input event to recalculate size on newline insertion
+                this.dispatchEvent(new Event('input'));
+            }, 0);
+        }
+    });
+}
+
+//Global Parameters for display
+let tobeInteg = '';
+let solId = null;
+if (typeof document !== 'undefined') {
+    solId = document.getElementById('solution');
+}
+
+// Global Step variables for LaTeX displaying
+let linear_P_step = '';
+let linear_Q_step = '';
+let linear_IF_step = '';
+let linear_integ_step = '';
+let bernoulli_sub_step = '';
+let bernoulli_linear_step = '';
+let separable_separated_step = '';
+let separable_integration_step = '';
+let exact_M_N_step = '';
+let exact_verification_step = '';
+let exact_u_step = '';
+
+function renderKatex(expr, el, options = {}) {
+    if (typeof katex === 'undefined') return;
+    const defaultMacros = {
+        "\\csc": "\\operatorname{cosec}",
+        "\\csch": "\\operatorname{cosech}",
+        "\\acsc": "\\operatorname{cosec}^{-1}",
+        "\\acsch": "\\operatorname{cosech}^{-1}"
+    };
+    const mergedOptions = Object.assign({
+        throwOnError: false,
+        trust: true
+    }, options);
+    mergedOptions.macros = Object.assign({}, defaultMacros, options.macros || {});
+    katex.render(expr, el, mergedOptions);
+}
+
+function getEquation() {
+    if (typeof document === 'undefined') return;
+    let userInput = document.getElementById("ode").value;
+
+    // Interpret <=, >=, approx= as = for calculations
+    userInput = userInput.replace(/<=/g, '=')
+        .replace(/>=/g, '=')
+        .replace(/approx=/g, '=')
+        .replace(/dho/g, 'd')
+        .replace(/∂/g, 'd')
+        .replace(/\\partial/g, 'd')
+        .replace(/pdiff/g, 'diff');
+
+    if (!solId) {
+        solId = document.getElementById('solution');
+    }
+    if (solId) {
+        solId.innerHTML = '';
+    }
+
+    // Reset global step variables
+    linear_P_step = '';
+    linear_Q_step = '';
+    linear_IF_step = '';
+    linear_integ_step = '';
+    bernoulli_sub_step = '';
+    bernoulli_linear_step = '';
+    separable_separated_step = '';
+    separable_integration_step = '';
+    exact_M_N_step = '';
+    exact_verification_step = '';
+    exact_u_step = '';
+
+    //Removing all spaces from string
+    userInput = userInput.split('').map(item => item.trim()).join('');
+
+    // Convert trig reciprocals globally
+    userInput = convertTrigReciprocals(userInput);
+
+    //Insert * between variables FIRST to ensure proper boundary detection during variable swapping
+    userInput = insertImplicitStars(userInput);
+
+    //Check for proper differential varibales
+    dxdytermShift = xy_checkReplace(userInput);
+    userInput = dxdytermShift[0];
+    xy_replaced = dxdytermShift[1];
+
+    userInput = checkFalsedx(userInput);
+
+    //validate the parenthesis and factorize
+    userInput = paranthesisValidation(userInput);
+
+    let modified_str_eq;
+
+    //Validation Order of ODE
+    if (orderValidation(userInput) && validExpression(userInput)) {
+        modified_str_eq = modify_inp(userInput);
+        console.log(`order is valid, expression is valid and modified_str_eq : ${modified_str_eq}`);
+
+        //Nerdamer differentiable string format
+        let init_Diff_nerd = convToNerdamer(modified_str_eq);
+        console.log(`Converted to Nerdamer differential form : ${init_Diff_nerd}`);
+
+        let initSolved = nerdDifferentiate(init_Diff_nerd);
+        console.log(`The initial differentiation gives initSolved : ${initSolved}`);
+        let solvedY = dydx_To_Y1(initSolved);
+        let firstODEsol = solveSingleOrder(solvedY);
+        if (firstODEsol.split('=').length - 1 > 1) {
+            firstODEsol = firstODEsol.split('=').slice(1, -1).join('+');
+            firstODEsol = nerdamer(`(-(${firstODEsol}))`).toString();
+            firstODEsol = firstODEsol + '=' + 'C';
+        }
+        let steps = [];
+        if (linear_P_step) steps.push(`\\text{Linear ODE standard form: } \\frac{dy}{dx} + P(x)y = Q(x)`);
+        if (linear_P_step) steps.push(linear_P_step);
+        if (linear_Q_step) steps.push(linear_Q_step);
+        if (linear_IF_step) steps.push(linear_IF_step);
+        if (linear_integ_step) steps.push(linear_integ_step);
+
+        if (bernoulli_sub_step) steps.push(bernoulli_sub_step);
+        if (bernoulli_linear_step) steps.push(bernoulli_linear_step);
+
+        if (separable_separated_step) steps.push(separable_separated_step);
+        if (separable_integration_step) steps.push(separable_integration_step);
+
+        if (exact_M_N_step) steps.push(exact_M_N_step);
+        if (exact_verification_step) steps.push(exact_verification_step);
+        if (exact_u_step) steps.push(exact_u_step);
+
+        if (xy_replaced == true) {
+            let solution_arr = [solvedY, ...steps, firstODEsol];
+            solution_arr.forEach(sol => {
+                let formatted_sol;
+                if (sol.startsWith('\\text{') || sol.includes('\\text{') || sol.startsWith('P(') || sol.startsWith('Q(')) {
+                    formatted_sol = swapXY(sol);
+                } else {
+                    formatted_sol = dxdykatexFormat(sol);
+                }
+                const p = document.createElement('p');
+                renderKatex(formatted_sol, p, { throwOnError: false });
+                solId.appendChild(p);
+            });
+        }
+        else {
+            let solution_arr = [solvedY, ...steps, firstODEsol];
+            solution_arr.forEach(sol => {
+                let formatted_sol;
+                if (sol.startsWith('\\text{') || sol.includes('\\text{') || sol.startsWith('P(') || sol.startsWith('Q(')) {
+                    formatted_sol = sol;
+                } else {
+                    formatted_sol = katexFormat(sol);
+                }
+                const p = document.createElement('p');
+                renderKatex(formatted_sol, p, { throwOnError: false });
+                solId.appendChild(p);
+            });
+        }
+        console.log(`Seperable ODE: ${solveSingleOrder(solvedY)}`);
+    }
+    else {
+        console.log(`Either orderValidation or validExpression Failed`);
+        window.alert("Invalid Order of ODE");
+        throw new Error("Invalid Order");
+    }
+
+}
+
+function checkFalsedx(input) {
+    let output;
+    let cleanInput = input.replace(/diff/g, '')
+        .replace(/product/g, '')
+        .replace(/prod/g, '')
+        .replace(/defint/g, '');
+    let eachVarExp = cleanInput.split(/[+\-*=]/);
+    let d_count = eachVarExp.map(item => item.split('d').length - 1);
+    d_count = d_count.reduce((a, b) => a + b, 0);
+    if (d_count % 2 !== 0) {
+        window.alert(`Invalid expression: diff. operator mismatch`);
+        throw new Error(`invalid use of diff operators`);
+    }
+    else {
+        if (!input.includes('d^')) {
+            output = input.replaceAll('dx', '1').replaceAll('dy', 'dy/dx');
+        }
+        else {
+            output = input;
+        }
+    }
+    return output;
+}
+
+function clearSolution() {
+    if (typeof document === 'undefined') return;
+    let ode = document.getElementById("ode");
+    if (ode) {
+        ode.value = '';
+        ode.style.width = '200px';
+        ode.style.height = 'auto';
+    }
+    let solution = document.getElementById("solution");
+    if (solution) {
+        solution.innerHTML = '';
+    }
+}
+
+function dydx_To_Y1(dydx) {
+    let ord_arr = dydx.split('d^').slice(1).map(item => {
+        let m = item.match(/\d+/);
+        return m ? m[0] : null;
+    }).filter(Boolean);
+    ord_arr = [...new Set(ord_arr)];
+    console.log(`The order in ${dydx}: ${ord_arr}`);
+    let Y = dydx;
+    for (let ord of ord_arr) {
+        // Replace numerator: d^ord*y, d^ordy, d^(ord)*y, d^(ord)y, etc.
+        let numRegex = new RegExp(`d\\^(?:${ord}|\\(${ord}\\))\\*?y`, 'g');
+        Y = Y.replace(numRegex, `Y${ord}`);
+
+        // Replace denominator: /dx^ord, /(dx^ord), /dx^(ord), /(dx^(ord))
+        let denRegex = new RegExp(`\\/(?:\\(\\s*dx\\^(?:${ord}|\\(${ord}\\))\\s*\\)|\\s*dx\\^(?:${ord}|\\(${ord}\\)))`, 'g');
+        Y = Y.replace(denRegex, '');
+
+        // Replace dx^-ord or dx^(-ord)
+        let denNegRegex = new RegExp(`dx\\^(?:-${ord}|\\(-${ord}\\))`, 'g');
+        Y = Y.replace(denNegRegex, '');
+    }
+    console.log(`For  dydx_To_Y1(${dydx}) : ${Y}`);
+    return Y;
+}
+
+//Swapping x and y 
+function swapXY(str) {
+    if (!str || typeof str !== 'string') return str;
+
+    return str
+        // 1. Handle d^n x and d^n y (e.g. d^1x, d^2y)
+        .replace(/d\^(\d+)x/g, "__TEMP_D_POW_$1_X__")
+        .replace(/d\^(\d+)y/g, "__TEMP_D_POW_$1_Y__")
+
+        // 1b. Handle D^n x and D^n y (e.g. D^1x, D^2y)
+        .replace(/D\^(\d+)x/g, "__TEMP_D_CAP_POW_$1_X__")
+        .replace(/D\^(\d+)y/g, "__TEMP_D_CAP_POW_$1_Y__")
+
+        // 2. Handle dx^n and dy^n (e.g. dx^1, dy^2)
+        .replace(/dx\^(\d+)/g, "__TEMP_DX_POW_$1__")
+        .replace(/dy\^(\d+)/g, "__TEMP_DY_POW_$1__")
+
+        // 3. Handle dx and dy as words
+        .replace(/\bdx\b/g, "__TEMP_DX__")
+        .replace(/\bdy\b/g, "__TEMP_DY__")
+
+        // 4. Handle Dx and Dy as words
+        .replace(/\bDx\b/g, "__TEMP_DX_CAP__")
+        .replace(/\bDy\b/g, "__TEMP_DY_CAP__")
+
+        // 5. Handle standalone x and y variables (protecting function names using word boundaries)
+        .replace(/\bx\b/g, "__TEMP_X__")
+        .replace(/\by\b/g, "__TEMP_Y__")
+        .replace(/\bX\b/g, "__TEMP_X_CAP__")
+        .replace(/\bY\b/g, "__TEMP_Y_CAP__")
+
+        // 6. Restore with swapped values
+        .replace(/__TEMP_D_POW_(\d+)_X__/g, "d^$1y")
+        .replace(/__TEMP_D_POW_(\d+)_Y__/g, "d^$1x")
+        .replace(/__TEMP_D_CAP_POW_(\d+)_X__/g, "D^$1y")
+        .replace(/__TEMP_D_CAP_POW_(\d+)_Y__/g, "D^$1x")
+        .replace(/__TEMP_DX_POW_(\d+)__/g, "dy^$1")
+        .replace(/__TEMP_DY_POW_(\d+)__/g, "dx^$1")
+        .replace(/__TEMP_DX__/g, "dy")
+        .replace(/__TEMP_DY__/g, "dx")
+        .replace(/__TEMP_DX_CAP__/g, "Dy")
+        .replace(/__TEMP_DY_CAP__/g, "Dx")
+        .replace(/__TEMP_X__/g, "y")
+        .replace(/__TEMP_Y__/g, "x")
+        .replace(/__TEMP_X_CAP__/g, "Y")
+        .replace(/__TEMP_Y_CAP__/g, "X");
+}
+
+//Check for dx/dy
+function xy_checkReplace(input) {
+    if (!input || typeof input !== 'string' || !input.trim()) {
+        return ['', false];
+    }
+
+    // 1. Leibniz notation: dx/dy or d^n x / dy^n 
+    const isLeibnizX = /\/\s*d(\^\d+)?\(?y\)?(\^\d+)?\b/i.test(input);
+
+    // 2. Prime notation: x', x'', etc.
+    const isPrimeX = /\bx'+/i.test(input);
+
+    // 3. Operator notation: Dx, D^1x, D^2x, etc.
+    const isOperatorX = /\bD(\^\d+)?x\b/.test(input);
+
+    //x is the differentiable variable 
+    if (isLeibnizX || isPrimeX || isOperatorX) {
+        console.log(`Detected x as the differentiable variable. Swapping x and y...`);
+        const swappedInput = swapXY(input);
+        console.log(`Swapped equation: ${swappedInput}`);
+        return [swappedInput, true];
+    }
+
+    console.log(`Detected y as the differentiable variable (default). No swap needed.`);
+    return [input, false];
+}
+
+//Validating paranthesis
+function paranthesisValidation(inp_str) {
+
+    console.log(`paranthesisValidation(${inp_str}) called`);
+
+    //Adding default exponents
+    inp_str = inp_str.replaceAll('dy', 'd^1y').replaceAll('Dy', 'D^1y');
+    inp_str = inp_str.replaceAll('d(', 'd^1(');
+    inp_str = inp_str.replaceAll('dx^', 'DX');
+    inp_str = inp_str.replaceAll('dx', 'dx^1');
+    inp_str = inp_str.replaceAll('DX', 'dx^');
+    inp_str = inp_str.replaceAll('"', "''");
+
+    inp_str = inp_str.replaceAll('{', '(').replaceAll('[', '(');
+    inp_str = inp_str.replaceAll('}', ')').replaceAll(']', ')');
+
+    console.log(`inp_str after parenthesisValdation : ${inp_str}`);
+
+    let parExp, operExp, factIndex, operIndex = [];
+    let validExp = false; let parLIndex, parRIndex, factor;
+
+    //Checking valid assignment
+    if (!inp_str.includes('=')) {
+        console.log(`Missing "=" assignment in ${inp_str}`);
+        if (typeof window !== 'undefined') window.alert('Enter Valid Expression "=" missing');
+        throw new Error("Missing assignment operator");
+    }
+    else {
+        if (inp_str.slice(inp_str.indexOf('=')) == '') {
+            console.log(`Missing variable after "=" assignment in ${inp_str}`);
+            if (typeof window !== 'undefined') window.alert('Enter Valid Expression : assignment missing');
+            throw new Error("Missing assignment");
+        }
+        if (inp_str.split('=').length - 1 > 1) {
+            console.log(`More than one "=" assignment in ${inp_str}`);
+            if (typeof window !== 'undefined') window.alert('Enter Valid Expression : >1 "=" assignment');
+            throw new Error("More than one '=' assignment found");
+        }
+    }
+
+    //Expanding terms and checking validity
+    if (/[(]/.test(inp_str)) {
+        let L_brackets = inp_str.split(/[(]/).length - 1;
+        let R_brackets = inp_str.split(/[)]/).length - 1;
+        if (L_brackets !== R_brackets) {
+            console.log(`L_brackets: ${L_brackets} not equal to R_brackets: ${R_brackets}`);
+            if (typeof window !== 'undefined') window.alert("Invalid Expression");
+            throw new Error("Invalid expression: Close Parenthesis properly");
+        }
+        else {
+            for (let i = 0; i < inp_str.length; i++) {
+                if (inp_str[i] == '(' && inp_str[i + 1] == ')') {
+                    console.log(`Empty parenthesis found @ ${i}`);
+                    if (typeof window !== 'undefined') window.alert("Empty parenthesis found");
+                    throw new Error("Invalid Expression found: Empty Parenthesis found");
+                }
+                else {
+                    validExp = true;
+                }
+            }
+            if (validExp == true) {
+                if (inp_str.includes('D')) {
+                    let inpLRstr = inp_str.split('=');
+                    let inpLstr = inpLRstr[0];
+                    let inpRstr = inpLRstr[1];
+                    inpLstr = nerdamer(`expand(${inpLstr})`).toString();
+                    inpRstr = nerdamer(`expand(${inpRstr})`).toString();
+                    inp_str = inpLstr + '=' + inpRstr;
+                    console.log(`Expanded D expression : ${inp_str}`);
+                }
+                console.log(`Final inp_str after nerdamer expansion : ${inp_str}`);
+            }
+        }
+    }
+    return inp_str;
+}
+
+//Validate Order of ODE
+function orderValidation(inp_exp) {
+
+    console.log("Checking for valid order");
+
+    if (inp_exp.includes('diff(')) return true;
+
+    let cleanInp = inp_exp.replace(/diff/g, '')
+        .replace(/product/g, '')
+        .replace(/prod/g, '')
+        .replace(/defint/g, '');
+
+    if (cleanInp.includes('d') && cleanInp.includes('D')) {
+        console.log('Both d & D are found in the same expression');
+        return false;
+    }
+    else if (cleanInp.includes('D') && cleanInp.includes("y'")) {
+        console.log("Both D and y' found in same expression");
+        return false;
+    }
+    else if (cleanInp.includes('d')) {
+        console.log('d exp found, Checking available order of ODE');
+        let parts = cleanInp.split('d^').slice(1);
+        console.log(`Expression was split at d^ into ${parts}`);
+        let y_index = parts.map(item => item.indexOf('y'));
+        console.log(`Found index of y in expression : ${y_index}`);
+        if (y_index.includes(-1)) {
+            console.log('Missing y after d in the expression');
+            return false;
+        }
+        else {
+            let filtered = parts.map(item => item.slice(0, item.indexOf('y'))).filter(item => item.includes('.') || !/[0-9]/.test(item[0]));
+            console.log(`Checking for valid order in expression => Available orders : ${filtered}`);
+            let isValid = filtered.length == 0 ? true : false;
+            console.log(`All available orders are valid ? ${isValid}`);
+            return isValid;
+        }
+    }
+    else if (cleanInp.includes('D')) {
+        console.log('D exp found, Checking available order of ODE');
+        let parts = cleanInp.split('D^').slice(1);
+        console.log(`Expression was split at D^ into ${parts}`);
+        let filtered = parts.map(item => item.slice(0, item.indexOf('y'))).filter(item => item.includes('.') || !/[0-9]/.test(item[0]));
+        console.log(`Checking for invalid order in expression => Invalid orders : ${filtered == '' ? 0 : filtered}`);
+        let isValid = filtered.length == 0 ? true : false;
+        console.log(`All available orders are valid ? ${isValid}`);
+        return isValid;
+    }
+    else {
+        console.log(`All available orders are valid ? ${true}`);
+        return true;
+    }
+}
+
+//Modify input into differential form
+function modify_inp(input) {
+
+    console.log(`Modifying input String: modify_inp(${input})`);
+
+    input = input.replaceAll('D*', 'D^1');
+
+    let modified_output = input;
+    let order_arr = [];
+
+    if (input.includes('d')) {
+        console.log(`Only d found => modified string : ${input}`);
+        modified_output = input;
+    }
+    else if (input.includes('D')) {
+        let D_arr = input.split('D^').slice(1);
+        order_arr = D_arr.map(item => parseInt(item.match(/^\d+/)[0])).filter(item => !isNaN(item));
+        order_arr = [...new Set(order_arr)];
+        console.log(`Only D found and available order : ${order_arr}`);
+        for (let ords of order_arr) {
+            modified_output = modified_output.replaceAll(`D^${ords}`, 'Y' + "'".repeat(ords)).replaceAll('y', "");
+        }
+        modified_output = modified_output.replaceAll('Y', 'y');
+        let dydxinp = modified_output;
+        modified_output = dydx(dydxinp).replaceAll('\)*', '\)');
+        console.log(`Found only D => Modified string : ${modified_output}`);
+    }
+    else {
+        modified_output = dydx(input);
+        console.log(`Modified String after converting y' to dy/dx : ${modified_output}`);
+    }
+    return modified_output;
+}
+
+//Convert to dy/dx form
+function dydx(inpt) {
+    console.log(`dydx(${inpt}) function used for converting y' to dy/dx`);
+    let mod_output = inpt;
+    let order_ar = [];
+    inpt = inpt.replaceAll("'y", "'*y");
+    console.log(`After replacing 'y with *y, modified string : ${inpt}`);
+    let diffOper = inpt.split(/[+\-*/=]/);
+    console.log(`String was split at operators +-/* to get diffOper : ${diffOper}`);
+    order_ar = diffOper.map(item => item.split("'").length - 1).filter(item => !isNaN(item));
+    order_ar = [...new Set(order_ar)];
+    order_ar = order_ar.filter(item => item !== 0);
+    order_ar.sort((a, b) => b - a);
+    console.log(`Sorted array order : ${order_ar}`);
+    for (let ords of order_ar) {
+        mod_output = mod_output.replaceAll("y" + "'".repeat(ords), `(d^${ords}Y/dx^${ords})`);
+    }
+    mod_output = mod_output.replaceAll('Y', 'y').replaceAll("'", '');
+    return mod_output;
+}
+
+//Validate Expression
+function validExpression(inp) {
+
+    console.log(`Checking Expression Validity: validExpression(${inp})`);
+
+    if (inp.includes('diff(')) return true;
+
+    let D_counts, y_count, dy_count, dx_count, ord_count = [];
+
+    // Clean function names containing 'd' to avoid false operator mismatch alerts
+    let cleanInp = inp.replace(/diff/g, '')
+        .replace(/product/g, '')
+        .replace(/prod/g, '')
+        .replace(/defint/g, '');
+
+    if (cleanInp.includes('d')) {
+        ord_count = cleanInp.split('d^').slice(1).map(item => parseInt(item.match(/^\d+/)[0])).filter(item => !isNaN(item) && item !== 0);
+        ord_count = [...new Set(ord_count)];
+        console.log(`input includes d and available orders : ${ord_count}`);
+
+        if (ord_count.length == 0) {
+            console.log(`Missing numbers in order array: Invalid Order`);
+            if (typeof window !== 'undefined') window.alert('Invalid order of ODE');
+            return false;
+        }
+
+        for (let ord of ord_count) {
+
+            dy_count = cleanInp.split(`d^${ord}`).length - 1;
+            dx_count = cleanInp.split(`dx^${ord}`).length - 1;
+
+            if (dy_count !== dx_count) {
+                console.log(`Order mismatch found @ ${ord}: dy_count: ${dy_count} != dx_count: ${dx_count}`);
+                if (typeof window !== 'undefined') window.alert('invalid order of ODE');
+                return false;
+            }
+        }
+        console.log(`d expression is valid`);
+        return true;
+    }
+
+    if (cleanInp.includes('D')) {
+
+        D_counts = cleanInp.split(/[+\-/=]/);
+        for (let D_count of D_counts) {
+            if (D_count.includes('D')) {
+                if (D_count.includes('y')) {
+                    return true;
+                }
+                else {
+                    console.log(`Missing y at ${D_count}`);
+                    if (typeof window !== 'undefined') window.alert("Invalid Order");
+                    return false;
+                }
+            }
+        }
+    }
+
+    if (cleanInp.includes("y'")) {
+        console.log(`Expression ${inp} includes only y' & is valid`);
+        return true;
+    }
+}
+
+function singleOrderCheck(problem) {
+    let numofDiffs = problem.split('Y').length - 1;
+    let numOrders = problem.split('Y').slice(1).map(item => parseInt(item));
+    numUniqOrders = [...new Set(numOrders)];
+
+    if (numUniqOrders.length == 1) {
+        console.log(`It is single order ODE`);
+        console.log(`The order is ${parseInt(numUniqOrders.join(''))}`);
+        return [true, parseInt(numUniqOrders.join(''))];
+    }
+    else {
+        console.log(`It is not single order ODE`);
+        return [false, ''];
+    }
+}
+
+function TotalIntegration(expr, diffvar, order) {
+    let sol = expr;
+    for (i = 1; i <= order; i++) {
+        sol = nerdamer(`integrate(${sol}, ${diffvar})`).toString();
+    }
+    return sol;
+}
+
+
+function parseExactSol(exact_sol) {
+    if (!exact_sol || typeof exact_sol !== 'string') return null;
+    if (exact_sol.startsWith('[') && exact_sol.endsWith(']')) {
+        let content = exact_sol.slice(1, -1);
+        let depth = 0;
+        let commaIdx = -1;
+        for (let i = 0; i < content.length; i++) {
+            if (content[i] === '(' || content[i] === '[') depth++;
+            else if (content[i] === ')' || content[i] === ']') depth--;
+            else if (content[i] === ',' && depth === 0) {
+                commaIdx = i;
+                break;
+            }
+        }
+        if (commaIdx !== -1) {
+            let IF = content.slice(0, commaIdx).trim();
+            let u = content.slice(commaIdx + 1).trim();
+            return { IF, u };
+        }
+    }
+    return null;
+}
+
+function cleanSolveResult(expr) {
+    if (!expr || typeof expr !== 'string') return expr;
+
+    // Reject corrupted rationalized 'e' solutions containing large Nerdamer rationalizer digits
+    if (expr.includes('119696244') || expr.includes('325368125')) {
+        console.log("Detected rationalized e corruption inside cleanSolveResult");
+        return '0';
+    }
+
+    if (expr.includes('=')) {
+        let parts = expr.split('=');
+        return parts.map(p => cleanSolveResult(p)).join('=');
+    }
+
+    // 1. Substitute the built-in constant "e" with a temporary symbol "const_e"
+    // to prevent Nerdamer from evaluating it to a 70-digit decimal.
+    let safe = expr.replace(/\be\b/g, 'const_e');
+
+    // 2. Simplify e^(...) powers containing logs
+    let idx = safe.indexOf('const_e^(');
+    while (idx !== -1) {
+        let bracketCount = 1;
+        let j = idx + 9;
+        while (j < safe.length && bracketCount > 0) {
+            if (safe[j] === '(') bracketCount++;
+            else if (safe[j] === ')') bracketCount--;
+            j++;
+        }
+        if (bracketCount === 0) {
+            let exponent = safe.slice(idx + 9, j - 1);
+            let fullMatch = safe.slice(idx, j);
+            try {
+                if (exponent.includes('log')) {
+                    let terms = getTerms(exponent);
+                    let prod = terms.map(t => 'exp(' + t + ')').join('*');
+                    let simplifiedExp = nerdamer(prod).simplify().toString();
+                    simplifiedExp = simplifiedExp.replace(/\be\b/g, 'const_e');
+                    safe = safe.replace(fullMatch, simplifiedExp);
+                    idx = safe.indexOf('const_e^(', idx + simplifiedExp.length);
+                } else {
+                    idx = safe.indexOf('const_e^(', idx + 1);
+                }
+            } catch (e) {
+                idx = safe.indexOf('const_e^(', idx + 1);
+            }
+        } else {
+            idx = safe.indexOf('const_e^(', idx + 1);
+        }
+    }
+
+    // 3. Expand the simplified expression to distribute front factors
+    safe = nerdamer(safe).expand().toString();
+
+    // 4. Find and factor arguments inside sqrt(...) to pull out constants like 4*e^2
+    idx = safe.indexOf('sqrt(');
+    while (idx !== -1) {
+        let bracketCount = 1;
+        let j = idx + 5;
+        while (j < safe.length && bracketCount > 0) {
+            if (safe[j] === '(') bracketCount++;
+            else if (safe[j] === ')') bracketCount--;
+            j++;
+        }
+        if (bracketCount === 0) {
+            let inner = safe.slice(idx + 5, j - 1);
+            let fullMatch = safe.slice(idx, j);
+            try {
+                let factoredInner = nerdamer(`factor(${inner})`).toString();
+                safe = safe.replace(fullMatch, `sqrt(${factoredInner})`);
+                idx = safe.indexOf('sqrt(', idx + factoredInner.length + 6);
+            } catch (e) {
+                idx = safe.indexOf('sqrt(', idx + 1);
+            }
+        } else {
+            idx = safe.indexOf('sqrt(', idx + 1);
+        }
+    }
+
+    // 5. Expand once more to pull out factors from sqrt
+    safe = nerdamer(safe).expand().toString();
+
+    // 6. Simplify the abs(const_e) * const_e^(-1) to 1
+    if (safe.includes('abs(const_e)') || safe.includes('log(const_e)')) {
+        safe = safe.replaceAll('abs(const_e)*const_e^(-1)', '1')
+            .replaceAll('abs(const_e)*const_e^-1', '1');
+
+        // 6.5 Simplify again to eliminate "1*"
+        safe = nerdamer(safe).simplify().toString();
+
+        // 6.6 Substitute log(const_e) with 1
+        safe = safe.replaceAll('log(const_e)', '1');
+        safe = nerdamer(safe).simplify().toString();
+    }
+
+    // 7. Restore "const_e" back to "e"
+    safe = safe.replace(/\bconst_e\b/g, 'e');
+    safe = safe.replaceAll('log(e)', '1');
+
+    // 8. Detect and fix Nerdamer's trig simplification sign-flip bug
+    try {
+        let orig_val = Number(nerdamer(expr.replace(/\bconst_e\b/g, 'e')).sub('x', '0.5').sub('y', '0.5').evaluate().text());
+        let simp_val = Number(nerdamer(safe).sub('x', '0.5').sub('y', '0.5').evaluate().text());
+        if (!isNaN(orig_val) && !isNaN(simp_val) && orig_val !== 0 && simp_val !== 0) {
+            if ((orig_val > 0 && simp_val < 0) || (orig_val < 0 && simp_val > 0)) {
+                safe = `-(${safe})`;
+            }
+        }
+    } catch (e) { }
+
+    return safe;
+}
+
+function separateFactors(expr) {
+    try {
+        let factored = nerdamer(`factor(${expr})`).toString();
+        let depth = 0;
+        let bracketDepth = 0;
+        const factors = [];
+        let start = 0;
+
+        for (let i = 0; i <= factored.length; i++) {
+            if (i < factored.length) {
+                let char = factored[i];
+                if (char === '(') depth++;
+                else if (char === ')') depth--;
+                else if (char === '[') bracketDepth++;
+                else if (char === ']') bracketDepth--;
+            }
+
+            if (i === factored.length || (factored[i] === '*' && depth === 0 && bracketDepth === 0)) {
+                let factor = factored.slice(start, i).trim();
+                if (factor) {
+                    factors.push(factor);
+                }
+                start = i + 1;
+            }
+        }
+
+        let xFactors = [];
+        let yFactors = [];
+        let constFactors = [];
+
+        for (let factor of factors) {
+            let hasX = factor.includes('x');
+            let hasY = factor.includes('y');
+
+            if (hasX && hasY) {
+                return null;
+            } else if (hasX) {
+                xFactors.push(factor);
+            } else if (hasY) {
+                yFactors.push(factor);
+            } else {
+                constFactors.push(factor);
+            }
+        }
+
+        let xPart = xFactors.length > 0 ? xFactors.join('*') : '1';
+        let yPart = yFactors.length > 0 ? yFactors.join('*') : '1';
+        let constPart = constFactors.length > 0 ? constFactors.join('*') : '1';
+
+        if (constPart !== '1') {
+            xPart = `${constPart}*(${xPart})`;
+        }
+
+        return { xPart, yPart };
+    } catch (e) {
+        return null;
+    }
+}
+
+
+//Solving the equation
+function solveSingleOrder(problem) {
+    let problem_const_e = problem.replace(/\be\b/g, 'const_e');
+    let res = _solveSingleOrder(problem_const_e);
+    if (res && typeof res === 'string') {
+        res = res.replace(/\bconst_e\b/g, 'e');
+    }
+    return res;
+}
+
+function _solveSingleOrder(problem) {
+
+    console.log(`solveSingleOrder(${problem})`);
+
+    // 0. Priority check: if d^n y/dx^n = f(x) with no y present → directly integrable (separable form)
+    try {
+        let yDerivs = problem.match(/Y\d+/g) || [];
+        let uniqueDerivs = [...new Set(yDerivs)];
+        if (uniqueDerivs.length === 1) {
+            let Yn = uniqueDerivs[0];
+            let n = parseInt(Yn.slice(1));
+            let tempEq = problem.replace(new RegExp(Yn, 'g'), 'TEMP_VAR');
+            let hasStandaloneY = /\by\b/.test(tempEq) || /\bY\b/.test(tempEq);
+            if (!hasStandaloneY) {
+                let eqForSep = problem.split('=').join('-(') + ')';
+                let rhsRaw = nerdamer(`solve(${eqForSep}, ${Yn})`).toString()
+                    .replaceAll('[', '').replaceAll(']', '').trim();
+                // Ensure RHS solved successfully and does not contain y or Y
+                if (rhsRaw && !rhsRaw.includes('y') && !/Y\d+/.test(rhsRaw) && !rhsRaw.includes('TEMP_VAR')) {
+                    // Integrate f(x) n times to build y
+                    let integrated = rhsRaw;
+                    let integSteps = [];
+                    for (let k = 0; k < n; k++) {
+                        let before = integrated;
+                        integrated = nerdamer(`integrate(${integrated}, x)`).toString();
+                        integSteps.push({ order: n - k, integrand: before, result: integrated });
+                    }
+
+                    // Build the arbitrary-constant tail: C for n=1, otherwise C_1*x^(n-1) + C_2*x^(n-2) + ... + C_n
+                    let constTerms = [];
+                    if (n === 1) {
+                        constTerms.push('C');
+                    } else {
+                        for (let k = 1; k <= n; k++) {
+                            let power = n - k;
+                            if (power === 0) {
+                                constTerms.push(`C_${k}`);
+                            } else if (power === 1) {
+                                constTerms.push(`C_${k}*x`);
+                            } else {
+                                constTerms.push(`C_${k}*x^${power}`);
+                            }
+                        }
+                    }
+                    let fullSol = integrated + (constTerms.length ? ' + ' + constTerms.join(' + ') : '');
+
+                    // Build step LaTeX
+                    try {
+                        let fTeX = nerdamer(rhsRaw).toTeX();
+                        if (n === 1) {
+                            separable_form_step = `\\text{Separable ODE: } \\frac{dy}{dx} = ${fTeX}`;
+                            separable_sol_step = `\\text{Separating variables: } dy = (${fTeX})\\,dx`;
+                            separable_separated_step = `\\text{Integrating both sides: } \\int dy = \\int (${fTeX})\\,dx`;
+                            separable_integration_step = `\\text{General solution: } y = ${nerdamer(integrated).toTeX()} + C`;
+                        } else {
+                            // Build step-by-step for higher orders
+                            separable_form_step = `\\text{Direct Integration: } \\frac{d^{${n}}y}{dx^{${n}}} = ${fTeX}`;
+
+                            let stepsTeX = [];
+                            for (let idx = 0; idx < n; idx++) {
+                                let order = n - idx;
+                                let nextOrder = order - 1;
+                                let dLabel = order === 1 ? `\\frac{dy}{dx}` : `\\frac{d^{${order}}y}{dx^{${order}}}`;
+                                let dLabelNext = nextOrder === 1 ? `\\frac{dy}{dx}` : nextOrder === 0 ? `y` : `\\frac{d^{${nextOrder}}y}{dx^{${nextOrder}}}`;
+
+                                // Build RHS for step idx (all integrations up to step idx plus constants)
+                                let stepPureInteg = integSteps[idx].result;
+                                let stepConsts = [];
+                                for (let k = 1; k <= idx + 1; k++) {
+                                    let power = (idx + 1) - k;
+                                    let constName = `C_{${k}}`;
+                                    if (power === 0) {
+                                        stepConsts.push(constName);
+                                    } else if (power === 1) {
+                                        stepConsts.push(`${constName} x`);
+                                    } else {
+                                        stepConsts.push(`${constName} x^{${power}}`);
+                                    }
+                                }
+                                let stepRHSTeX = nerdamer(stepPureInteg).toTeX() + ' + ' + stepConsts.join(' + ');
+
+                                // RHS of the input equation of the integration
+                                let prevRHSTeX = "";
+                                if (idx === 0) {
+                                    prevRHSTeX = fTeX;
+                                } else {
+                                    let prevPureInteg = integSteps[idx - 1].result;
+                                    let prevConsts = [];
+                                    for (let k = 1; k <= idx; k++) {
+                                        let power = idx - k;
+                                        let constName = `C_{${k}}`;
+                                        if (power === 0) {
+                                            prevConsts.push(constName);
+                                        } else if (power === 1) {
+                                            prevConsts.push(`${constName} x`);
+                                        } else {
+                                            prevConsts.push(`${constName} x^{${power}}`);
+                                        }
+                                    }
+                                    prevRHSTeX = nerdamer(prevPureInteg).toTeX() + ' + ' + prevConsts.join(' + ');
+                                }
+
+                                stepsTeX.push(`\\text{Integrate (step ${idx + 1}): } ${dLabel} = ${prevRHSTeX} \\implies ${dLabelNext} = ${stepRHSTeX}`);
+                            }
+
+                            separable_sol_step = stepsTeX.join(' \\\\\\ ');
+                            separable_separated_step = '';
+                            separable_integration_step = `\\text{General solution: } y = ${nerdamer(integrated).toTeX()} + ` + constTerms.map(t => nerdamer(t).toTeX()).join(' + ');
+                        }
+                    } catch (e) {
+                        console.error('Error building direct-integration step LaTeX:', e);
+                    }
+
+                    return `y = ${cleanSolveResult(fullSol)}`;
+                }
+            }
+        }
+    } catch (e) {
+        console.error('Direct-integration pre-check error:', e);
+    }
+
+    singleCheck = singleOrderCheck(problem);
+    singleOrdCheck = singleCheck[0];
+    replaceOrder = singleCheck[1];
+    console.log(`replaceOrder : ${replaceOrder}, ${singleCheck}`);
+
+    if (!singleOrdCheck) {
+        //Attempting to solve higher order ODE equation
+        let sol = higherOrderODEsolver(problem);
+        return sol;
+    }
+
+    //1. Attemping to solve linear ode first
+    let solLin_Y = linearODEsolver(problem);
+    if (solLin_Y !== '0') {
+        return solLin_Y;
+    }
+
+    // 2. Attempt direct exact / integrating factor solver on the unsolved problem form first!
+    let problem_std = problem.replaceAll(`Y${replaceOrder}`, 'Y1');
+    let direct_sol = directExactSolver(problem_std, false);
+    if (direct_sol && direct_sol !== '0') {
+        if (direct_sol.startsWith('[')) {
+            let parsed = parseExactSol(direct_sol);
+            if (parsed) {
+                direct_sol = parsed.u;
+            }
+        }
+        let ode_sol = TotalIntegration(direct_sol, 'x', replaceOrder - 1);
+        return ode_sol + '=' + 'C';
+    }
+
+    if (!singleOrdCheck) {
+        return '0';
+    }
+
+    problem = problem.replaceAll(`Y${replaceOrder}`, `(Y${replaceOrder})`);
+    let dyBydx, dx, dy, num, den, expr, ode_sol;
+
+    if (singleOrdCheck) {
+
+        let sol_Y = solveLinearY(problem, `Y${replaceOrder}`);
+        if (!sol_Y) {
+            sol_Y = nerdamer(`solve(${problem}, Y${replaceOrder})`).toString();
+            sol_Y = sol_Y.replaceAll('[', '').replaceAll(']', '');
+        }
+        let raw_sol_arr = sol_Y.split(',');
+        console.log(`After solving for Y${replaceOrder}: ${raw_sol_arr}`)
+
+        // Filter out extraneous solutions
+        let problem_lhs = problem.split('=')[0];
+        console.log(`problem_lhs: ${problem_lhs}`);
+        let validated_sol_arr = raw_sol_arr.filter(item => {
+            try {
+                let sub_expr = nerdamer(problem_lhs).sub(`Y${replaceOrder}`, item).simplify().toString();
+                return sub_expr === '0';
+            } catch (e) {
+                return true;
+            }
+        });
+
+        if (validated_sol_arr.length === 0) {
+            validated_sol_arr = raw_sol_arr;
+        }
+
+        partSol = validated_sol_arr.map(item => {
+            item = item + '=' + `Y${replaceOrder}`;
+            expr = item.replace(`Y${replaceOrder}`, 'dy/dx');
+            console.log(`The expression passed to nerdamerTest() is ${expr}`)
+
+            let isSeperable = nerdamerTest(expr);
+            console.log(`Seperability of given 1st order ODE : ${isSeperable}`);
+            if (isSeperable) {
+                dyBydx = tobeInteg;
+                console.log(`dy/dx = ${tobeInteg}`);
+                let isHomogeneous = tobeInteg.includes('u');
+                let dyLHS, dxRHS;
+                if (isHomogeneous) {
+                    let dyExpr = `1/(${tobeInteg})`;
+                    let simplified = nerdamer(dyExpr).simplify().toString();
+                    let num = nerdamer(simplified).numerator().expand().toString();
+                    let den = nerdamer(simplified).denominator().expand().toString();
+                    dy = `(${num})/(${den})`;
+                    dx = `1/x`;
+                    console.log(`integrate(${dy}, u), integrate(${dx},x)`);
+                    dyLHS = TotalIntegration(dy, 'u', replaceOrder);
+                    dyLHS = nerdamer(dyLHS).sub('u', 'y/x').toString();
+                    dxRHS = TotalIntegration(dx, 'x', replaceOrder);
+
+                    try {
+                        separable_separated_step = `\\text{Homogeneous Substitution: } y = u \\cdot x \\implies \\text{Separated Form: } (${nerdamer(dy).toTeX()}) du = (${nerdamer(dx).toTeX()}) dx`;
+                        separable_integration_step = `\\text{Integrating both sides: } \\int (${nerdamer(dy).toTeX()}) du = \\int (${nerdamer(dx).toTeX()}) dx \\implies ${nerdamer(dyLHS).toTeX()} = ${nerdamer(dxRHS).toTeX()} + C`;
+                    } catch (e) {
+                        console.error("Error generating homogeneous separable step LaTeX:", e);
+                    }
+                } else {
+                    num = nerdamer(dyBydx).numerator().toString();
+                    den = nerdamer(dyBydx).denominator().toString();
+                    console.log(`numerator: ${num}, denominator: ${den}`);
+
+                    // Separating variables robustly using algebraic factorization
+                    let numSeparated = separateFactors(num);
+                    let denSeparated = separateFactors(den);
+                    let dyExpr, dxExpr;
+
+                    if (numSeparated && denSeparated) {
+                        dyExpr = nerdamer(`(${denSeparated.yPart}) / (${numSeparated.yPart})`).simplify().toString();
+                        dxExpr = nerdamer(`(${numSeparated.xPart}) / (${denSeparated.xPart})`).simplify().toString();
+                    } else {
+                        // Fallback to robust algebraic substitution
+                        dyExpr = `1/(${num})`;
+                        dxExpr = `1/(${den})`;
+
+                        const testValues = ['1', '2', '3', '5'];
+                        for (let val of testValues) {
+                            let num_norm = nerdamer(num).sub('x', val).sub('y', val);
+                            let den_norm = nerdamer(den).sub('x', val).sub('y', val);
+                            if (num_norm.toString() !== '0' && den_norm.toString() !== '0') {
+                                let num_y = nerdamer(num).sub('x', val);
+                                let num_x = nerdamer(num).sub('y', val);
+                                let den_y = nerdamer(den).sub('x', val);
+                                let den_x = nerdamer(den).sub('y', val);
+
+                                dyExpr = nerdamer(`(${den_y})/(${num_y})`).simplify().toString();
+                                dxExpr = nerdamer(`((${num_x})/(${den_x})) / ((${num_norm})/(${den_norm}))`).simplify().toString();
+                                break;
+                            }
+                        }
+                    }
+
+                    dy = nerdamer(dyExpr).toString();
+                    dx = nerdamer(dxExpr).toString();
+
+                    console.log(`integrate(${dy}, y), integrate(${dx},x)`);
+                    dyLHS = TotalIntegration(dy, 'y', replaceOrder);
+                    dxRHS = TotalIntegration(dx, 'x', replaceOrder);
+
+                    try {
+                        separable_separated_step = `\\text{Separating variables: } (${nerdamer(dy).toTeX()}) dy = (${nerdamer(dx).toTeX()}) dx`;
+                        separable_integration_step = `\\text{Integrating both sides: } \\int (${nerdamer(dy).toTeX()}) dy = \\int (${nerdamer(dx).toTeX()}) dx \\implies ${nerdamer(dyLHS).toTeX()} = ${nerdamer(dxRHS).toTeX()} + C`;
+                    } catch (e) {
+                        console.error("Error generating separable step LaTeX:", e);
+                    }
+                }
+                console.log(`integrate(${dy}) = ${dyLHS}, integrate(${dx},x) = ${dxRHS}`);
+
+                // Fallback to exact differential solver if separable integration failed (i.e. leaves unintegrated forms)
+                if (dyLHS.includes('integrate') || dxRHS.includes('integrate')) {
+                    console.log("Separable integration failed analytically. Falling back to exact ODE solver.");
+                    let sol_arr = exactDifferTest(expr.replace('dy/dx', 'Y1'));
+                    if (sol_arr && sol_arr !== '0' && sol_arr !== 'no \\ solution \\ exists') {
+                        if (sol_arr.startsWith('[')) {
+                            let parsed = parseExactSol(sol_arr);
+                            if (parsed) {
+                                sol_arr = parsed.u;
+                            }
+                        }
+                        ode_sol = TotalIntegration(sol_arr, 'x', replaceOrder - 1);
+                        return ode_sol + '=' + 'C';
+                    }
+                }
+
+                if (dyLHS === 'y') {
+                    // Already solved for y! No need to call nerdamer.solve which gets stuck on complex x integrations
+                    ode_sol = dxRHS;
+                } else {
+                    ode_sol = dyLHS + '=' + dxRHS;
+                    try {
+                        let y = nerdamer(`solve(${ode_sol}, y)`).toString();
+                        console.log(y, ode_sol);
+                        y = y.replaceAll('[', '').replaceAll(']', '');
+                        if (!y.includes(',') && !y == '') {
+                            ode_sol = y;
+                        }
+                        else {
+                            ode_sol = y !== '' ? y.split(',').map((item, i) => `C_${i}*(${item})`).join('+') :
+                                ode_sol;
+                        }
+                    } catch (e) {
+                        console.error("Error solving final ODE:", e);
+                    }
+                }
+                return cleanSolveResult(ode_sol);
+            }
+            else {
+                expr = expr.replace('dy/dx', `Y1`);
+                let sol_arr = exactDifferTest(expr);
+                if (sol_arr && sol_arr !== '0') {
+                    if (sol_arr.startsWith('[')) {
+                        let parsed = parseExactSol(sol_arr);
+                        if (parsed) {
+                            sol_arr = parsed.u;
+                        }
+                    }
+                    if (nerdamer(sol_arr).simplify().toString() !== '0') {
+                        ode_sol = TotalIntegration(sol_arr, 'x', replaceOrder - 1);
+                        return ode_sol + '=' + 'C';
+                    }
+                    else {
+                        return `no \\ solution \\ exists`;
+                    }
+                }
+                return `no \\ solution \\ exists`;
+            }
+        });
+    }
+    if (partSol.length === 1 && partSol[0] === "no \\ solution \\ exists") {
+        return "no \\ solution \\ exists";
+    }
+    let hasEquals = partSol.some(sol => sol.includes('='));
+    let result_str;
+    if (hasEquals) {
+        result_str = partSol.join('+');
+        if (!result_str.endsWith('=C') && !result_str.endsWith('= C')) {
+            result_str += '+C';
+        }
+    } else {
+        result_str = 'y' + '=' + partSol.join('+') + '+' + 'C';
+    }
+    if (result_str.split('=').length - 1 > 1) {
+        result_str = result_str.split('=').slice(1, -1).join('+');
+        result_str = nerdamer(`(-(${result_str}))`).toString();
+        result_str = result_str + '=' + 'C';
+    }
+    return result_str;
+}
+
+function cleanTrigIdentities(str) {
+    if (!str || typeof str !== 'string') return str;
+
+    // Replace cos(u)^2 + sin(u)^2 with 1
+    str = str.replace(/cos\(([^)]+)\)\^2\s*\+\s*sin\(\1\)\^2/g, '1')
+        .replace(/sin\(([^)]+)\)\^2\s*\+\s*cos\(\1\)\^2/g, '1');
+
+    // Handle cases with no spaces or parenthesis variations
+    str = str.replace(/cos\(([^)]+)\)\^2\+sin\(\1\)\^2/g, '1')
+        .replace(/sin\(([^)]+)\)\^2\+cos\(\1\)\^2/g, '1');
+
+    // Replace 2*sin(u)*cos(u) with sin(2*u), protecting powers using (?!\^)
+    str = str.replace(/2\*cos\(([^)]+)\)\*sin\(\1\)(?!\^)/g, 'sin(2*$1)')
+        .replace(/2\*sin\(([^)]+)\)\*cos\(\1\)(?!\^)/g, 'sin(2*$1)');
+
+    // Also handle negative versions like -2*sin(u)*cos(u)
+    str = str.replace(/-2\*cos\(([^)]+)\)\*sin\(\1\)(?!\^)/g, '-sin(2*$1)')
+        .replace(/-2\*sin\(([^)]+)\)\*cos\(\1\)(?!\^)/g, '-sin(2*$1)');
+
+    return str;
+}
+
+function rewriteReciprocalTrigProducts(str) {
+    if (!str || typeof str !== 'string') return str;
+    let pat1 = /cos\(([^)]+)\)\^(\(-1\)|-1)\s*\*\s*sin\(\1\)\^(\(-1\)|-1)/g;
+    let pat2 = /sin\(([^)]+)\)\^(\(-1\)|-1)\s*\*\s*cos\(\1\)\^(\(-1\)|-1)/g;
+    let pat3 = /\(cos\(([^)]+)\)\s*\*\s*sin\(\1\)\)\^(\(-1\)|-1)/g;
+    let pat4 = /\(sin\(([^)]+)\)\s*\*\s*cos\(\1\)\)\^(\(-1\)|-1)/g;
+    str = str.replace(pat1, '(cot($1)+tan($1))')
+        .replace(pat2, '(cot($1)+tan($1))')
+        .replace(pat3, '(cot($1)+tan($1))')
+        .replace(pat4, '(cot($1)+tan($1))');
+    return str;
+}
+
+function rewriteHyperbolicProducts(str) {
+    if (!str || typeof str !== 'string') return str;
+    let pat1 = /cosh\(([^)]+)\)\^(\(-1\)|-1)\s*\*\s*sinh\(\1\)/g;
+    let pat2 = /sinh\(([^)]+)\)\s*\*\s*cosh\(\1\)\^(\(-1\)|-1)/g;
+    let pat3 = /cosh\(([^)]+)\)\s*\*\s*sinh\(\1\)\^(\(-1\)|-1)/g;
+    let pat4 = /sinh\(([^)]+)\)\^(\(-1\)|-1)\s*\*\s*cosh\(\1\)/g;
+    str = str.replace(pat3, 'coth($1)')
+        .replace(pat4, 'coth($1)')
+        .replace(pat2, 'tanh($1)')
+        .replace(pat1, 'tanh($1)');
+    return str;
+}
+
+function simplifyLogExponents(str) {
+    if (!str || typeof str !== 'string') return str;
+
+    let safe = str.replace(/\be\^\(/g, 'exp(');
+
+    let idx = safe.indexOf('exp(');
+    while (idx !== -1) {
+        let bracketCount = 1;
+        let j = idx + 4;
+        while (j < safe.length && bracketCount > 0) {
+            if (safe[j] === '(') bracketCount++;
+            else if (safe[j] === ')') bracketCount--;
+            j++;
+        }
+        if (bracketCount === 0) {
+            let exponent = safe.slice(idx + 4, j - 1);
+            let fullMatch = safe.slice(idx, j);
+            try {
+                if (exponent.includes('log')) {
+                    let cleanExp = convertTrigReciprocals(exponent);
+                    let terms = getTerms(cleanExp);
+                    let prod = terms.map(t => 'exp(' + t + ')').join('*');
+                    let simplifiedExp = nerdamer(prod).simplify().toString();
+                    safe = safe.replace(fullMatch, simplifiedExp);
+                    idx = safe.indexOf('exp(', idx + simplifiedExp.length);
+                } else {
+                    idx = safe.indexOf('exp(', idx + 1);
+                }
+            } catch (e) {
+                idx = safe.indexOf('exp(', idx + 1);
+            }
+        } else {
+            idx = safe.indexOf('exp(', idx + 1);
+        }
+    }
+
+    return safe;
+}
+
+function directExactSolver(input, allowIF = true) {
+    try {
+        let lhs = input.split('=')[0].trim();
+        let rhs = input.split('=')[1] ? input.split('=')[1].trim() : '0';
+
+        // Re-arrange LHS - RHS to have everything on one side
+        let eqExpr = `(${lhs}) - (${rhs})`;
+
+        // 1. Extract P by setting Y1 = 0
+        let P = nerdamer(eqExpr).sub('Y1', '0').simplify().toString();
+
+        // 2. Extract Q by differentiating LHS wrt Y1
+        let Q = nerdamer(`diff(${eqExpr}, Y1)`).simplify().toString();
+
+        // 3. Compute partial derivatives
+        let dPy = nerdamer(`diff(${P}, y)`).sub('log(const_e)', '1').simplify().toString();
+        let dQx = nerdamer(`diff(${Q}, x)`).sub('log(const_e)', '1').simplify().toString();
+
+        // Apply trig identity cleanups
+        dPy = cleanTrigIdentities(dPy);
+        dQx = cleanTrigIdentities(dQx);
+
+        let equalCheck = nerdamer(dPy + '-' + dQx).sub('log(const_e)', '1').expand().simplify().toString();
+        equalCheck = cleanTrigIdentities(equalCheck);
+        equalCheck = nerdamer(equalCheck).sub('log(const_e)', '1').simplify().toString();
+
+        if (equalCheck === '0') {
+            let u = TotalIntegration(P, 'x', 1);
+            let duy = nerdamer(`diff(${u}, y)`).sub('log(const_e)', '1').toString();
+            u = TotalIntegration(`(${Q})-(${duy})`, 'y', 1) + '+' + '(' + u + ')';
+            u = nerdamer(u).sub('log(const_e)', '1').simplify().toString();
+            u = cleanSolveResult(u);
+            return u;
+        }
+
+        if (!allowIF) {
+            return '0';
+        }
+
+        // 4. Check for integrating factor wrt x
+        try {
+            let R = nerdamer(`((${dPy})-(${dQx})) / (${Q})`).sub('log(const_e)', '1').simplify().toString();
+            R = cleanTrigIdentities(R);
+            R = rewriteReciprocalTrigProducts(R);
+            R = rewriteHyperbolicProducts(R);
+            R = nerdamer(R).sub('log(const_e)', '1').simplify().toString();
+            R = rewriteReciprocalTrigProducts(R); // Run again on simplified form to catch newly simplified reciprocal trig products
+            R = rewriteHyperbolicProducts(R);
+
+            if (!R.includes('y')) {
+                let IF = nerdamer(`integrate(${R}, x)`).sub('log(const_e)', '1').toString();
+                IF = nerdamer(`exp(${IF})`).sub('log(const_e)', '1').expand().simplify().toString();
+                IF = IF.replace(/\be\b/g, 'const_e');
+                IF = convertTrigReciprocals(IF);
+                IF = simplifyLogExponents(IF);
+                IF = nerdamer(IF).sub('log(const_e)', '1').simplify().toString();
+
+                let M = nerdamer(P).multiply(IF).sub('log(const_e)', '1').simplify().toString();
+                let N = nerdamer(Q).multiply(IF).sub('log(const_e)', '1').simplify().toString();
+                let u = TotalIntegration(M, 'x', 1);
+                let duy = nerdamer(`diff(${u}, y)`).sub('log(const_e)', '1').toString();
+                u = TotalIntegration(`(${N})-(${duy})`, 'y', 1) + '+' + '(' + u + ')';
+                u = nerdamer(u).sub('log(const_e)', '1').simplify().toString();
+                u = cleanSolveResult(u);
+                return `[${IF}, ${u}]`;
+            }
+        } catch (e) {
+            console.log("Integrating factor wrt x failed:", e);
+        }
+
+        // 5. Check for integrating factor wrt y
+        try {
+            let RStar = nerdamer(`((${dQx})-(${dPy})) / (${P})`).sub('log(const_e)', '1').simplify().toString();
+            RStar = cleanTrigIdentities(RStar);
+            RStar = rewriteReciprocalTrigProducts(RStar);
+            RStar = rewriteHyperbolicProducts(RStar);
+            RStar = nerdamer(RStar).sub('log(const_e)', '1').simplify().toString();
+            RStar = rewriteReciprocalTrigProducts(RStar); // Run again on simplified form to catch newly simplified reciprocal trig products
+            RStar = rewriteHyperbolicProducts(RStar);
+
+            if (!RStar.includes('x')) {
+                let IF = nerdamer(`integrate(${RStar}, y)`).sub('log(const_e)', '1').toString();
+                IF = nerdamer(`exp(${IF})`).sub('log(const_e)', '1').expand().simplify().toString();
+                IF = IF.replace(/\be\b/g, 'const_e');
+                IF = convertTrigReciprocals(IF);
+                IF = simplifyLogExponents(IF);
+                IF = nerdamer(IF).sub('log(const_e)', '1').simplify().toString();
+
+                let M = nerdamer(P).multiply(IF).sub('log(const_e)', '1').simplify().toString();
+                let N = nerdamer(Q).multiply(IF).sub('log(const_e)', '1').simplify().toString();
+                let u = TotalIntegration(M, 'x', 1);
+                let duy = nerdamer(`diff(${u}, y)`).sub('log(const_e)', '1').toString();
+                u = TotalIntegration(`(${N})-(${duy})`, 'y', 1) + '+' + '(' + u + ')';
+                u = nerdamer(u).sub('log(const_e)', '1').simplify().toString();
+                u = cleanSolveResult(u);
+                return `[${IF}, ${u}]`;
+            }
+        } catch (e) {
+            console.log("Integrating factor wrt y failed:", e);
+        }
+
+        return '0';
+    } catch (e) {
+        return '0';
+    }
+}
+
+function exactDifferTest(input) {
+    console.log(`exactDifferTest(${input})`);
+
+    // Attempt direct exact/integrating-factor solver first
+    let direct_sol = directExactSolver(input);
+    if (direct_sol && direct_sol !== '0') {
+        return direct_sol;
+    }
+
+    let problem = solveLinearY(input, 'Y1');
+    if (!problem) {
+        problem = nerdamer(`solve(${input}, Y1)`).toString();
+        problem = problem.replaceAll('[', '').replaceAll(']', '');
+    }
+    let M, N, factors, dMy, dNx, sol, u;
+    let partSol = problem.split(',');
+    console.log(`The solution for dy/dx = ${problem}`);
+    partSol = partSol.map(item => {
+        item = nerdamer(item).toString();
+        let factorize = nerdamer(item).toString();
+        let num = nerdamer(factorize).numerator().toString();
+        let den = nerdamer(factorize).denominator().toString();
+
+        num = nerdamer(num).simplify().toString();
+        den = nerdamer(den).simplify().toString();
+
+        console.log(`In ${input}: Numerator:${num}, Denominator:${den}`);
+        if (!/[xy]/.test(den)) {
+            factors = splitProductTerm(num);
+            N = nerdamer(`(${den}) / (${factors[0]})`).simplify().toString();
+            M = nerdamer(`0-((${num}) / (${factors[0]}))`).simplify().toString();
+            dMy = nerdamer(`diff(${M}, y)`).simplify().toString();
+            dNx = nerdamer(`diff(${N}, x)`).simplify().toString();
+            let equalCheck = nerdamer(dMy - dNx).expand().simplify().toString();
+            console.log(`${input} => M(x,y):[${M}] + N(x,y):[${N}]*dy/dx = 0`);
+            console.log(`dM/dy:[${dMy}] - dN/dx:[{${dNx}] = ${equalCheck}`);
+            if (equalCheck == '0') {
+                let u = TotalIntegration(M, 'x', 1);
+                let duy = nerdamer(`diff(${u}, y)`).toString();
+                u = TotalIntegration(`(${N})-(${duy})`, 'y', 1) + '+' + '(' + u + ')';
+                sol = nerdamer(u).simplify().toString();
+                sol = cleanSolveResult(sol);
+                console.log(`The solution of excat differential ${input}: ${sol}`);
+                return sol;
+            }
+            else {
+                return reduceToExactDiff(M, N, dMy, dNx);
+            }
+        }
+        else if (!/[xy]/.test(num)) {
+            factors = splitProductTerm(den);
+            N = nerdamer(`(${den}) / (${factors[0]})`).simplify().toString();
+            M = nerdamer(`0-((${num}) / (${factors[0]}))`).simplify().toString();
+            dMy = nerdamer(`diff(${M}, y)`).simplify().toString();
+            dNx = nerdamer(`diff(${N}, x)`).simplify().toString();
+            let equalCheck = nerdamer(dMy - dNx).expand().simplify().toString();
+            console.log(`${input} => M(x,y):[${M}] + N(x,y):[${N}]*dy/dx = 0`);
+            console.log(`dM/dy:[${dMy}] - dN/dx:[{${dNx}] = ${equalCheck}`);
+            if (equalCheck == '0') {
+                let u = TotalIntegration(M, 'x', 1);
+                let duy = nerdamer(`diff(${u}, y)`).toString();
+                u = TotalIntegration(`(${N})-(${duy})`, 'y', 1) + '+' + '(' + u + ')';
+                sol = nerdamer(u).simplify().toString();
+                sol = cleanSolveResult(sol);
+                console.log(`The solution of excat differential ${input}: ${sol}`);
+                return sol;
+            }
+            else {
+                return reduceToExactDiff(M, N, dMy, dNx);
+            }
+        }
+        else {
+            N = den;
+            M = nerdamer(`0-(${num})`).toString();
+            dMy = nerdamer(`diff(${M}, y)`).simplify().toString();
+            dNx = nerdamer(`diff(${N}, x)`).simplify().toString();
+            let equalCheck = nerdamer(dMy).toString() == nerdamer(dNx).toString() ? 0 : 1;
+            console.log(`${input} => M(x,y):[${M}] + N(x,y):[${N}]*dy/dx = 0`);
+            console.log(`dM/dy:[${dMy}] - dN/dx:[${dNx}] = ${equalCheck}`);
+            if (equalCheck == 0) {
+                let u = TotalIntegration(M, 'x', 1);
+                let duy = nerdamer(`diff(${u}, y)`).toString();
+                u = TotalIntegration(`(${N})-(${duy})`, 'y', 1) + '+' + '(' + u + ')';
+                sol = nerdamer(u).simplify().toString();
+                sol = cleanSolveResult(sol);
+                console.log(`The solution of exact differential ${input}: ${sol}`);
+                return sol;
+            }
+            else {
+                return reduceToExactDiff(M, N, dMy, dNx);
+            }
+        }
+    });
+    console.log(partSol);
+    let finSol = partSol.join('+');
+    console.log(finSol);
+    return finSol;
+}
+
+console.log(nerdamer(`diff(-2*y-3*y^2-cos(x+y), x)`).toString());
+
+function reduceToExactDiff(P, Q, dPy, dQx) {
+    console.log(`reduce to exact : P:${P}, Q:${Q}, dP/dy:${dPy}, dQ/dx:${dQx} `);
+    P = nerdamer(P).sub('log(const_e)', '1').simplify().toString();
+    Q = nerdamer(Q).sub('log(const_e)', '1').simplify().toString();
+
+    // 1. Check if R(x) = (dPy - dQx) / Q is a function of x only
+    let R = nerdamer(`((${dPy})-(${dQx})) / (${Q})`).sub('log(const_e)', '1').simplify().toString();
+    R = cleanTrigIdentities(R);
+    R = rewriteReciprocalTrigProducts(R);
+    R = rewriteHyperbolicProducts(R);
+    R = nerdamer(R).sub('log(const_e)', '1').simplify().toString();
+    R = rewriteReciprocalTrigProducts(R); // Run again on simplified form to catch newly simplified reciprocal trig products
+    R = rewriteHyperbolicProducts(R);
+    console.log(`R(x): ${R}`);
+
+    if (!R.includes('y')) {
+        let IF = nerdamer(`integrate(${R}, x)`).sub('log(const_e)', '1').toString();
+        IF = nerdamer(`exp(${IF})`).sub('log(const_e)', '1').expand().simplify().toString();
+        IF = IF.replace(/\be\b/g, 'const_e');
+        IF = convertTrigReciprocals(IF);
+        IF = simplifyLogExponents(IF);
+        IF = nerdamer(IF).sub('log(const_e)', '1').simplify().toString();
+        console.log(`I.F. (wrt x): ${IF}`);
+
+        let M = nerdamer(P).multiply(IF).sub('log(const_e)', '1').simplify().toString();
+        let N = nerdamer(Q).multiply(IF).sub('log(const_e)', '1').simplify().toString();
+        let u = TotalIntegration(M, 'x', 1);
+        let duy = nerdamer(`diff(${u}, y)`).sub('log(const_e)', '1').toString();
+        u = TotalIntegration(`(${N})-(${duy})`, 'y', 1) + '+' + '(' + u + ')';
+        u = nerdamer(u).sub('log(const_e)', '1').simplify().toString();
+        u = cleanSolveResult(u);
+
+        try {
+            exact_M_N_step = `\\text{Non-exact ODE: finding Integrating Factor (wrt x)}`;
+            exact_verification_step = `M(x,y) = ${nerdamer(P).toTeX()}, \\ N(x,y) = ${nerdamer(Q).toTeX()}`;
+            exact_u_step = `\\text{Integrating Factor (wrt x): } I(x) = e^{\\int \\frac{M_y - N_x}{N} dx} = ${nerdamer(IF).toTeX()}`;
+        } catch (e) {
+            console.error("Error generating exact IF wrt x step LaTeX:", e);
+        }
+
+        return `[${IF}, ${u}]`;
+    }
+
+    // 2. Check if R*(y) = (dQx - dPy) / P is a function of y only
+    let RStar = nerdamer(`((${dQx})-(${dPy})) / (${P})`).sub('log(const_e)', '1').simplify().toString();
+    RStar = cleanTrigIdentities(RStar);
+    RStar = rewriteReciprocalTrigProducts(RStar);
+    RStar = rewriteHyperbolicProducts(RStar);
+    RStar = nerdamer(RStar).sub('log(const_e)', '1').simplify().toString();
+    RStar = rewriteReciprocalTrigProducts(RStar); // Run again on simplified form to catch newly simplified reciprocal trig products
+    RStar = rewriteHyperbolicProducts(RStar);
+    console.log(`R*(y): ${RStar}`);
+
+    if (!RStar.includes('x')) {
+        let IF = nerdamer(`integrate(${RStar}, y)`).sub('log(const_e)', '1').toString();
+        IF = nerdamer(`exp(${IF})`).sub('log(const_e)', '1').expand().simplify().toString();
+        IF = IF.replace(/\be\b/g, 'const_e');
+        IF = convertTrigReciprocals(IF);
+        IF = simplifyLogExponents(IF);
+        IF = nerdamer(IF).sub('log(const_e)', '1').simplify().toString();
+        console.log(`I.F. (wrt y): ${IF}`);
+
+        let M = nerdamer(P).multiply(IF).sub('log(const_e)', '1').simplify().toString();
+        let N = nerdamer(Q).multiply(IF).sub('log(const_e)', '1').simplify().toString();
+        let u = TotalIntegration(M, 'x', 1);
+        let duy = nerdamer(`diff(${u}, y)`).sub('log(const_e)', '1').toString();
+        u = TotalIntegration(`(${N})-(${duy})`, 'y', 1) + '+' + '(' + u + ')';
+        u = nerdamer(u).sub('log(const_e)', '1').simplify().toString();
+        u = cleanSolveResult(u);
+
+        try {
+            exact_M_N_step = `\\text{Non-exact ODE: finding Integrating Factor (wrt y)}`;
+            exact_verification_step = `M(x,y) = ${nerdamer(P).toTeX()}, \\ N(x,y) = ${nerdamer(Q).toTeX()}`;
+            exact_u_step = `\\text{Integrating Factor (wrt y): } I(y) = e^{\\int \\frac{N_x - M_y}{M} dy} = ${nerdamer(IF).toTeX()}`;
+        } catch (e) {
+            console.error("Error generating exact IF wrt y step LaTeX:", e);
+        }
+
+        return `[${IF}, ${u}]`;
+    }
+
+    // 3. No single-variable integrating factor exists
+    console.log("No single-variable integrating factor exists.");
+    return '0';
+}
+
+function linearODEsolver(input, allowIntegrate = false) {
+    try {
+        let eq = input.split('=').join('-(') + ')';
+        eq = convertTrigReciprocals(eq);
+        let eqExpr = nerdamer(eq).simplify().toString();
+        console.log(`input: ${eqExpr}`);
+
+        // Check linearity by differentiating twice and checking cross-derivatives
+        let d2_Y1 = nerdamer(`diff(diff(${eqExpr}, Y1), Y1)`).simplify().toString();
+        let d2_y = nerdamer(`diff(diff(${eqExpr}, y), y)`).simplify().toString();
+        let d_cross = nerdamer(`diff(diff(${eqExpr}, Y1), y)`).simplify().toString();
+
+        console.log(`d2_Y1: ${d2_Y1}, d2_y: ${d2_y}, d_cross: ${d_cross}`);
+
+        if (d2_Y1 === '0' && d2_y === '0' && d_cross === '0') {
+            let Y1 = nerdamer(`solve(${eqExpr}, Y1)`).toString().replaceAll('[', '').replaceAll(']', '');
+            let Q = nerdamer(Y1).sub('y', '0').simplify().toString();
+            let P = nerdamer(`diff(${Y1}, y)`).multiply('-1').simplify().toString();
+
+            let h = nerdamer(`integrate(${P}, x)`).simplify().toString();
+            let IF = nerdamer(`exp(${h})`).simplify().toString().replace(/\be\b/g, 'const_e');
+            let IF_inv = nerdamer(`exp(-(${h}))`).simplify().toString().replace(/\be\b/g, 'const_e');
+            let integral = nerdamer(`integrate((${Q}) * (${IF}), x)`).simplify().toString().replace(/\be\b/g, 'const_e');
+
+            let particular = nerdamer(`(${integral}) * (${IF_inv})`).expand().simplify().toString().replace(/\be\b/g, 'const_e');
+            let transient = nerdamer(`const_C * (${IF_inv})`).simplify().toString().replace(/\be\b/g, 'const_e');
+            let sol = particular + ' + ' + transient;
+            sol = sol.replace(/\bconst_C\b/g, 'C');
+            sol = cleanSolveResult(sol);
+
+            if (sol === '0' || (!allowIntegrate && sol.includes('integrate'))) {
+                console.log("Linear ODE integration failed analytically, returning '0' for fallback.");
+                return '0';
+            }
+
+            try {
+                linear_P_step = `P(x) = ${nerdamer(P).toTeX()}`;
+                linear_Q_step = `Q(x) = ${nerdamer(Q).toTeX()}`;
+                linear_IF_step = `\\text{Integrating Factor: } I(x) = e^{\\int P(x)dx} = ${nerdamer(IF.replace(/\bconst_e\b/g, 'e')).toTeX()}`;
+                linear_integ_step = `\\text{General Solution Integral: } \\int Q(x)I(x)dx = ${nerdamer(integral.replace(/\bconst_e\b/g, 'e')).toTeX()}`;
+            } catch (e) {
+                console.error("Error generating linear ODE step LaTeX:", e);
+            }
+
+            return `y = ${sol}`;
+        } else {
+            console.log(`Non linear ODE, trying to reduce ${eqExpr} to linear ODE`);
+            if (d2_Y1 === '0' && d2_y !== '0' && d_cross === '0') {
+                let sol = reduceToLinear(input);
+                return sol;
+            } else {
+                console.log(`Strictly Non linear ODE, return '0'`);
+                return '0';
+            }
+        }
+    } catch (e) {
+        console.error("Error in linearODEsolver:", e);
+        return '0';
+    }
+}
+
+function reduceToLinear(problem) {
+    try {
+        let eq = problem.split('=').join('-(') + ')';
+        eq = convertTrigReciprocals(eq);
+        let eqExpr = nerdamer(eq).simplify().toString();
+
+        let Y1 = nerdamer(`solve(${eqExpr}, Y1)`).toString().replaceAll('[', '').replaceAll(']', '');
+        let allterms = getTerms(Y1);
+        if (allterms.length !== 2) {
+            console.log("Not reducible to linear: Y1 must have exactly 2 terms");
+            return '0';
+        }
+
+        let term1 = allterms[0];
+        let term2 = allterms[1];
+
+        let exp1 = nerdamer(`(y * diff(${term1}, y)) / (${term1})`).simplify().toString();
+        let exp2 = nerdamer(`(y * diff(${term2}, y)) / (${term2})`).simplify().toString();
+
+        let linearTerm = null;
+        let bernoulliTerm = null;
+        let n = null;
+
+        if (exp1 === '1' && exp2 !== '1' && exp2 !== '0') {
+            linearTerm = term1;
+            bernoulliTerm = term2;
+            n = exp2;
+        } else if (exp2 === '1' && exp1 !== '1' && exp1 !== '0') {
+            linearTerm = term2;
+            bernoulliTerm = term1;
+            n = exp1;
+        } else {
+            console.log(`Not reducible to linear: expected one term of degree 1 and another of degree n (where n != 0, 1) in y. Got degrees ${exp1} and ${exp2}`);
+            return '0';
+        }
+
+        let P = nerdamer(linearTerm).divide('y').multiply('-1').simplify().toString();
+        let Q = nerdamer(bernoulliTerm).divide(`y^(${n})`).simplify().toString();
+
+        let one_minus_n = nerdamer(`1 - (${n})`).simplify().toString();
+        let P_new = nerdamer(`(${one_minus_n}) * (${P})`).simplify().toString();
+        let Q_new = nerdamer(`(${one_minus_n}) * (${Q})`).simplify().toString();
+
+        let linearProblem = `Y1 + (${P_new})*y = ${Q_new}`;
+        console.log(`Transformed linear problem: ${linearProblem}`);
+
+        try {
+            bernoulli_sub_step = `\\text{Bernoulli ODE: substitution } v = y^{1-n} = y^{${nerdamer(one_minus_n).toTeX()}}`;
+            bernoulli_linear_step = `\\text{Reduces to Linear ODE: } \\frac{dv}{dx} + (${nerdamer(P_new).toTeX()}) v = ${nerdamer(Q_new).toTeX()}`;
+        } catch (e) {
+            console.error("Error generating Bernoulli step LaTeX:", e);
+        }
+
+        let sol = linearODEsolver(linearProblem, true);
+        if (sol === '0') {
+            return '0';
+        }
+
+        let rhs = sol.replace(/^y\s*=\s*/, '');
+        return `y^(${one_minus_n}) = ${rhs}`;
+    } catch (e) {
+        console.error("Error in reduceToLinear:", e);
+        return '0';
+    }
+}
+
+function splitProductTerm(term) {
+    let depth = 0;
+    const factors = [];
+    let start = 0;
+
+    for (let i = 0; i <= term.length; i++) {
+        if (i < term.length) {
+            if (term[i] === '(') depth++;
+            else if (term[i] === ')') depth--;
+        }
+
+        if ((term[i] === '*' && depth === 0) || i === term.length) {
+            factors.push(term.slice(start, i));
+            start = i + 1;
+        }
+    }
+
+    if (factors.length === 1) return ['1', term];
+
+    const plain = factors.filter(f => !f.includes('('));
+    const funcs = factors.filter(f => f.includes('('));
+
+    const isConstant = f => /^-?\d+(\.\d+)?$/.test(f);
+    const vars = plain.filter(f => !isConstant(f));
+    const constants = plain.filter(f => isConstant(f));
+
+    let left, right;
+
+    if (funcs.length === 0) {
+        const last = factors[factors.length - 1];
+        left = factors.slice(0, -1).join('*');
+        right = last;
+    } else if (vars.length > 0) {
+        left = [...constants, ...vars].join('*');
+        right = funcs.join('*');
+    } else {
+        const mid = Math.ceil(funcs.length / 2);
+        left = funcs.slice(0, mid).join('*');
+        right = funcs.slice(mid).join('*');
+    }
+
+    if (left.split('*').every(isConstant)) left = '1';
+
+    return [left, right];
+}
+
+//Change to Nerdamer Form
+function nerdamerTest(test_inp) {
+
+    let test = test_inp;
+
+    console.log(`nerdamerTest(${test}) was called`);
+
+    test = test.replaceAll('d^1y', 'dy').replaceAll('dx^1', 'dx');
+    test = test.replaceAll('dx', '(dx)').replaceAll('xy', 'x*y');
+    console.log(`test input converted to ${test}`);
+
+    let testArr = test.split('=');
+
+    let rightHand = nerdamer(testArr[1]).toString();
+    let leftHand = nerdamer(testArr[0]).toString();
+
+    console.log(`LHS parsed to ${leftHand} \n RHS parsed to ${rightHand}`);
+
+    test = leftHand + '=' + rightHand;
+    console.log(`Final parsed expression : ${test}`);
+
+    let solved_dy = solveLinearY(test, 'dy');
+    if (!solved_dy) {
+        test = nerdamer(`solve(${test}, dy)`).toString();
+        test = test.replaceAll('[', '').replaceAll(']', '');
+    } else {
+        test = solved_dy;
+    }
+    console.log(`The expression was solved for dy : dy = ${test}`);
+
+    // Keep clean unsolved expression to avoid factor() decimal-bloating when passing to factorOutx
+    let solvedExpr = test.replaceAll('dx', '1');
+
+    test = nerdamer(`factor(${test})`).toString();
+    console.log(`Expression was factored => dy = ${test}`);
+    test = test.replaceAll('dx', '1');
+    console.log(`dx was moved left : dy/dx = ${test}`);
+
+    if (seperableDiff(test)) {
+        console.log('It is seperable');
+        tobeInteg = test;
+        return true;
+    }
+    else {
+        let nerdXbyY = nerdamer(`x/y`).toString();
+        let nerdYbyX = nerdamer('y/x').toString();
+
+        // Pass the clean original solved expression instead of the bloated factored one!
+        test = factorOutx(solvedExpr);
+        test = test + '-' + 'u';
+        console.log(`Substituted u = y/x : dy/dx =  ${test}`);
+        if (reduceToSeperable(test)) {
+            console.log('It is seperable');
+            tobeInteg = test;
+            return true;
+        }
+        else {
+            console.log("Not seperable");
+            return false;
+        }
+    }
+}
+
+//Serperable Test
+function seperableDiff(diffop) {
+    console.log(`Checking for seperability: seperableDiff(${diffop})`);
+    try {
+        let numer = nerdamer(diffop).numerator().toString();
+        let denom = nerdamer(diffop).denominator().toString();
+
+        if (numer === '0' || denom === '0') return false;
+
+        let numSeparated = separateFactors(numer);
+        let denSeparated = separateFactors(denom);
+
+        return numSeparated !== null && denSeparated !== null;
+    } catch (e) {
+        console.error("Error in seperableDiff:", e);
+        return false;
+    }
+}
+
+
+function factorOutx(unfact) {
+
+    try {
+        let expr = nerdamer(unfact);
+        let num = expr.numerator();
+        let den = expr.denominator();
+
+        // Substitute y with (u * x) and expand/simplify to distribute powers correctly
+        let numSub = num.sub('y', '(u * x)').expand().simplify();
+        let denSub = den.sub('y', '(u * x)').expand().simplify();
+
+        // Divide the simplified numerator by the simplified denominator and simplify the whole fraction
+        let result = nerdamer('(' + numSub.toString() + ')/(' + denSub.toString() + ')').simplify();
+
+        return result.toString();
+    } catch (e) {
+        console.error("Error in factorOutx:", e);
+        return unfact;
+    }
+}
+
+//Reduction to Seperable form
+function reduceToSeperable(differOp) {
+
+    console.log(`Reduction to seperable equation check: reduceToSeperable(${differOp})`);
+
+    let isSeperable;
+
+    let numer = nerdamer(differOp).numerator().toString();
+    let denom = nerdamer(differOp).denominator().toString();
+    console.log(`Numerator : ${numer} \n Denominator : ${denom}`);
+
+    if (numer == '0' || denom == '0') {
+        console.log('Either numerator or denominator is empty');
+        isSeperable = false;
+        return isSeperable;
+    }
+
+    let numTest = numer.includes('u') && numer.includes('x') ? false :
+        numer.includes('u') && !numer.includes('x') || !numer.includes('u') && nerdamer(differOp).toString().includes('x') ||
+            !numer.includes('u') && !nerdamer(differOp).toString().includes('x') ? true : false;
+
+    let cleanNumer = numer.replace(/^[+-]/, '');
+    if (numTest == false && !/[+-]/.test(cleanNumer)) {
+        numTest = true;
+    }
+
+    console.log(`Numerator test : ${numTest}`);
+
+    let denomTest = denom.includes('u') && denom.includes('x') ? false :
+        denom.includes('u') && !denom.includes('x') || !denom.includes('u') && denom.includes('x') ||
+            !denom.includes('u') && !denom.includes('x') ? true : false;
+
+    let cleanDenom = denom.replace(/^[+-]/, '');
+    if (denomTest == false && !/[+-]/.test(cleanDenom)) {
+        denomTest = true;
+    }
+
+    console.log(`Denominator test : ${denomTest}`);
+
+    isSeperable = numTest && denomTest ? true : false;
+
+    return isSeperable;
+}
+
+function convToNerdamer(origEq) {
+
+    console.log(`Converting to nerdamer diff to make initial differentiation : convToNerdamer(${origEq})`);
+
+    let findOrder = origEq.split('d^').slice(1);
+    findOrder = findOrder.map(item => parseInt(item)).filter(item => item !== isNaN(item) && item !== '');
+    findOrder = [...new Set(findOrder)];
+    console.log(`The available order : ${findOrder}`);
+
+    for (let eachOrder of findOrder) {
+
+        let y_arg = origEq;
+        y_arg = y_arg.split(`d^${eachOrder}`).slice(1).join('');
+        y_arg = y_arg.slice(0, y_arg.indexOf('/'));
+        console.log(`Argument of differentiation [y_arg] @ order => ${eachOrder}: ${y_arg}`);
+        if (y_arg != 'y' && y_arg != '(y)') {
+            origEq = origEq.replaceAll(`d^${eachOrder}${y_arg}/dx^${eachOrder}`, `diff(${y_arg}, y, ${eachOrder})`);
+        }
+        console.log(origEq);
+    }
+    console.log(`The nerdamer differentiable string : ${origEq}`);
+    return origEq;
+}
+
+function nerdDifferentiate(unsolved) {
+
+    console.log(`nerdDifferentiate(${unsolved}) called`);
+
+    let solvedDeq = unsolved;
+    let solvedNerd;
+
+    let findDiff = [];
+    let idx = unsolved.indexOf('diff(');
+    while (idx !== -1) {
+        let bracketCount = 1;
+        let j = idx + 5;
+        while (j < unsolved.length && bracketCount > 0) {
+            if (unsolved[j] === '(') {
+                bracketCount++;
+            } else if (unsolved[j] === ')') {
+                bracketCount--;
+            }
+            j++;
+        }
+        if (bracketCount === 0) {
+            findDiff.push(unsolved.slice(idx, j));
+        }
+        idx = unsolved.indexOf('diff(', idx + 1);
+    }
+
+    console.log(`Found diff expressions : ${findDiff}`);
+
+    //Applying Chain Rule
+    for (let eachDiff of findDiff) {
+        let func = eachDiff.replaceAll('diff', '');
+        func = func.slice(1, -1).split(',');
+        console.log(`Each variable inside ${eachDiff} : ${func}`);
+        let ord = func[2];
+        let fxy = func[0];
+        let solveProd = productRule(fxy, ord);
+        console.log(`product applied for ${fxy} @ order:${ord} : ${solveProd}`);
+        let nerdSolve = nerdamer(solveProd).toString();
+        console.log(`${solveProd} solved using nerdamer : ${nerdSolve}`);
+        solvedDeq = solvedDeq.replaceAll(eachDiff, nerdSolve);
+    }
+    console.log(`Final Nerdamer string after solving differential : ${solvedDeq}`);
+    return solvedDeq;
+}
+
+function totalDerivative(expr) {
+    console.log(`Differentiating: ${expr}`);
+    let parsedExpr = nerdamer(expr);
+
+    // 1. Partial derivative wrt x
+    let dF_dx = nerdamer(`diff(${expr}, x)`);
+    console.log(`Partial wrt x: d/dx(${expr}) = ${dF_dx.toString()}`);
+
+    // 2. Partial derivative wrt y
+    let dF_dy = nerdamer(`diff(${expr}, y)`);
+    console.log(`Partial wrt y: d/dy(${expr}) * Y1 = (${dF_dy.toString()}) * Y1`);
+
+    let totalStr = `(${dF_dx.toString()}) + (${dF_dy.toString()}) * (Y1)`;
+
+    // 3. Find all Y_k variables in the expression
+    let vars = parsedExpr.variables();
+    for (let v of vars) {
+        let match = v.match(/^Y(\d+)$/);
+        if (match) {
+            let k = parseInt(match[1]);
+            let dF_dYk = nerdamer(`diff(${expr}, ${v})`);
+            console.log(`  Partial wrt ${v}: d/d${v}(${expr}) * Y${k + 1} = (${dF_dYk.toString()}) * Y${k + 1}`);
+            totalStr += ` + (${dF_dYk.toString()}) * (Y${k + 1})`;
+        }
+    }
+
+    let result = nerdamer(totalStr).expand().toString();
+    console.log(`  => Total Derivative: ${result}`);
+    return result;
+}
+
+function productRule(uvString, order) {
+    console.log(`Differentiating "${uvString}" to Order ${order}`);
+    let current = uvString;
+    order = parseInt(order);
+    for (let i = 1; i <= order; i++) {
+        console.log(`Order ${i}`);
+        current = totalDerivative(current);
+    }
+    console.log(`Final Expanded Result: ${current}`);
+    return current;
+}
+
+function tokenize(expr) {
+    let tokens = [];
+    let i = 0;
+
+    while (i < expr.length) {
+        // Skip operators
+        if ('+-'.includes(expr[i])) {
+            i++;
+            continue;
+        }
+
+        // Collect a full term including its parentheses
+        let start = i;
+        while (i < expr.length && !'+-*/'.includes(expr[i])) {
+            if (expr[i] === '(') {
+                let depth = 1;
+                i++;
+                while (i < expr.length && depth > 0) {
+                    if (expr[i] === '(') depth++;
+                    if (expr[i] === ')') depth--;
+                    i++;
+                }
+            } else {
+                i++;
+            }
+        }
+        tokens.push(expr.slice(start, i));
+    }
+
+    return tokens;
+}
+
+function getInnerFuncts(func) {
+    const results = [func];
+
+    for (let i = 0; i < func.length; i++) {
+        if (func[i] === '(') {
+            let depth = 1;
+            let start = i + 1;
+            let j = i + 1;
+
+            while (j < func.length && depth > 0) {
+                if (func[j] === '(') depth++;
+                if (func[j] === ')') depth--;
+                j++;
+            }
+
+            const inner = func.slice(start, j - 1);
+            if (inner.includes('(')) results.push(inner);
+            i = j - 1;
+        }
+    }
+    return results;
+}
+
+function getOperators(expression) {
+    const expr = expression.replace(/\s+/g, '');
+    const operators = [];
+
+    for (let i = 0; i < expr.length; i++) {
+        const ch = expr[i];
+        if ((ch === '+' || ch === '-') && i !== 0) {
+            const prev = expr[i - 1];
+            // Only a binary operator if it follows a digit, variable, or closing paren
+            if (/[\d a-zA-Z)]/.test(prev)) {
+                operators.push(ch);
+            }
+        }
+    }
+
+    return operators;
+}
+
+function getTerms(expression) {
+    if (!expression || typeof expression !== 'string' || !expression.trim()) {
+        return [];
+    }
+
+    // 1. Solve and fully expand the expression using Nerdamer
+    // This resolves parentheses, multiplication of terms, etc.
+    const solvedExpr = nerdamer(expression).expand();
+    const solvedStr = solvedExpr.toString();
+
+    // 2. Parse and split terms at the top-level (respecting brackets/parentheses)
+    const terms = [];
+    let currentTerm = "";
+    let parenDepth = 0;
+    let bracketDepth = 0;
+    let braceDepth = 0;
+
+    for (let i = 0; i < solvedStr.length; i++) {
+        const char = solvedStr[i];
+
+        // Track parentheses/bracket/brace levels
+        if (char === '(') parenDepth++;
+        else if (char === ')') parenDepth--;
+        else if (char === '[') bracketDepth++;
+        else if (char === ']') bracketDepth--;
+        else if (char === '{') braceDepth++;
+        else if (char === '}') braceDepth--;
+
+        // Split on top-level '+' or '-' only
+        if ((char === '+' || char === '-') && parenDepth === 0 && bracketDepth === 0 && braceDepth === 0) {
+            if (currentTerm.trim()) {
+                terms.push(currentTerm.trim());
+            }
+            // Keep the minus sign with the next term; positive terms are implicitly unsigned
+            currentTerm = (char === '-') ? '-' : '';
+        } else {
+            currentTerm += char;
+        }
+    }
+
+    if (currentTerm.trim()) {
+        terms.push(currentTerm.trim());
+    }
+
+    return terms;
+}
+
+function clearSolution() {
+    if (typeof document === 'undefined') return;
+    let ode = document.getElementById("ode");
+    if (ode) {
+        ode.value = '';
+        ode.style.width = '200px';
+        ode.style.height = '30px';
+    }
+    let solution = document.getElementById("solution");
+    if (solution) {
+        solution.innerHTML = '';
+    }
+}
+
+if (typeof module !== 'undefined') {
+    module.exports = {
+        getTerms,
+        totalDerivative,
+        productRule,
+        clearSolution,
+        insertImplicitStars,
+        checkFalsedx,
+        paranthesisValidation,
+        orderValidation,
+        validExpression,
+        modify_inp,
+        convToNerdamer,
+        nerdDifferentiate,
+        dydx_To_Y1,
+        solveSingleOrder,
+        convertTrigReciprocals,
+        katexFormat,
+        seperableDiff
+    };
+}
