@@ -10,7 +10,7 @@
     <script src="https://kit.fontawesome.com/422f9f51d2.js" crossorigin="anonymous"></script>
     <title>Mathgabs</title>
     <link rel="icon" type="image/png" href="images/mathgabs_favicon.png">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=23">
 </head>
 
 <body>
@@ -97,7 +97,7 @@
     <script src="https://cdn.jsdelivr.net/npm/mathjs@13.2.0/lib/browser/math.js"></script>
     <script src="xy_checkReplace.js?v=10"></script>
     <script src="katexFormat.js?v=10"></script>
-    <script src="main.js?v=28"></script>
+    <script src="main.js?v=30"></script>
     <script>
         (function () {
             'use strict';
@@ -458,10 +458,11 @@
                 if (!layer) return;
 
                 /* ── Tuning knobs ─────────────────────────────────────────── */
-                const RINGS = 5;    // number of concentric circles
-                const ANTS_PER_RING = 55;  // ants per ring  →  5 × 55 = 275 total
-                const RING_STEP_BASE = 55; // gap before first ring
-                const RING_STEP_INC = 28; // each successive ring is 28px wider apart
+                const _mob = window.innerWidth < 768;
+                const RINGS = _mob ? 3 : 5;                    // fewer rings on mobile
+                const ANTS_PER_RING = _mob ? 15 : 55;          // fewer ants on mobile
+                const RING_STEP_BASE = _mob ? 16 : 55;          // tighter first gap on mobile
+                const RING_STEP_INC = _mob ? 8 : 28;           // tighter ring spacing on mobile
                 const BASE_SPEED = 0.009;
                 const FLEE_R = 110;
                 const FLEE_STR = 3.0;
