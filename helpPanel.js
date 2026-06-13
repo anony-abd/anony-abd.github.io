@@ -9,7 +9,10 @@
    ───────────────────────────────────────────────────────────── */
 (function setMobileViewportHeight() {
   function apply() {
-    if (window.innerWidth > 900) return;   // desktop: leave CSS alone
+    if (window.innerWidth > 900) {
+      document.body.style.height = ''; // desktop: leave CSS alone and reset inline height
+      return;
+    }
     document.body.style.height = window.innerHeight + 'px';
   }
 
@@ -219,6 +222,7 @@
     // Tap active item when CLOSED → open dropdown (don't navigate)
     // Tap active item when OPEN  → navigate normally
     activeItem.addEventListener('click', (e) => {
+      if (window.innerWidth > 768) return; // ignore on desktop
       if (!navBar.classList.contains('nav-open')) {
         e.preventDefault();
         e.stopPropagation();
@@ -232,6 +236,7 @@
     // dropdown — but the active bar item is always shown by CSS (not JS),
     // so it never "disappears" from the bar.
     document.addEventListener('click', (e) => {
+      if (window.innerWidth > 768) return; // ignore on desktop
       if (!mainUl.contains(e.target)) {
         navBar.classList.remove('nav-open');
       }
