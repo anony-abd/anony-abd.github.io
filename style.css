@@ -1289,7 +1289,7 @@ code {
     width: 100%;
 }
 
-.more-panel-content > .symbol-subpanel {
+.more-panel-content>.symbol-subpanel {
     grid-column: span 2;
     justify-self: center;
     width: 100%;
@@ -1298,18 +1298,18 @@ code {
     gap: 6px;
 }
 
-.more-panel-content > .symbol-subpanel button.subpanel-btn {
+.more-panel-content>.symbol-subpanel button.subpanel-btn {
     min-width: 72px;
     height: 36px !important;
     font-size: 0.7rem !important;
 }
 
-.more-panel-content > .nums-grid {
+.more-panel-content>.nums-grid {
     grid-template-columns: repeat(3, 52px);
     gap: 6px;
 }
 
-.more-panel-content > .nums-grid button.num-btn {
+.more-panel-content>.nums-grid button.num-btn {
     width: 52px !important;
     min-width: 52px !important;
     max-width: 52px !important;
@@ -1328,6 +1328,7 @@ code {
     #more-panel:not(.show-symbols) .symbol-toggle-row {
         display: none !important;
     }
+
     #more-panel:not(.show-symbols) .symbol-subpanel {
         display: none !important;
     }
