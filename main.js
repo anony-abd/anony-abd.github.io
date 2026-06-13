@@ -360,28 +360,33 @@ if (typeof document !== 'undefined') {
 
 function resizeTextarea(el) {
     if (!el) return;
+
+    const isMobile = window.innerWidth <= 600;
     if (el.id === 'math') return; // Let updateMathOverlay handle math resizing!
+
     if (el.value == '') {
-        if (el.id !== 'math') {
+        if (!isMobile && el.id !== 'math') {
             if (el.style.width !== '400px') el.style.width = '400px';
         }
-        if (el.style.height !== '60px') el.style.height = '60px';
-        if (el.id !== 'math') {
+
+        let defaultHeight = isMobile ? '44px' : '60px';
+        if (el.style.height !== defaultHeight) el.style.height = defaultHeight;
+
+        if (!isMobile && el.id !== 'math') {
             const container = el.closest('.ode-input-container');
             if (container) {
                 container.style.width = '400px';
             }
         }
-    }
-    else {
+    } else {
         // Get computed style for accurate font, padding, and border
         let computedStyle = window.getComputedStyle(el);
-        let fontSize = computedStyle.fontSize || '14.4px';
+        let fontSize = computedStyle.fontSize || (isMobile ? '15.2px' : '14.4px');
         let fontFamily = computedStyle.fontFamily || 'Poppins, sans-serif';
         let fontWeight = computedStyle.fontWeight || 'normal';
         let font = `${fontWeight} ${fontSize} ${fontFamily}`;
 
-        // Cache the canvas element on the textbox object to avoid recreating it
+        // Cache the canvas element
         const canvas = el._canvas || (el._canvas = document.createElement("canvas"));
         const context = canvas.getContext("2d");
         context.font = font;
@@ -393,39 +398,35 @@ function resizeTextarea(el) {
             if (w > maxLineWidth) maxLineWidth = w;
         }
 
-        if (el.id === 'math' && typeof window !== 'undefined' && window.mathSolverLastSolution) {
+        if (!isMobile && el.id === 'math' && typeof window !== 'undefined' && window.mathSolverLastSolution) {
             let plainSol = "=> " + window.mathSolverLastSolution.replace(/\\[a-zA-Z]+/g, '').replace(/[{}]/g, '');
             let w = context.measureText(plainSol).width;
             if (w > maxLineWidth) maxLineWidth = w;
         }
 
-        // Calculate extra width (padding + border)
-        let paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
-        let paddingRight = parseFloat(computedStyle.paddingRight) || 0;
-        let borderLeft = parseFloat(computedStyle.borderLeftWidth) || 0;
-        let borderRight = parseFloat(computedStyle.borderRightWidth) || 0;
-        let extraWidth = paddingLeft + paddingRight + borderLeft + borderRight;
+        // Width calculation (desktop only, on mobile width is 100%)
+        if (!isMobile) {
+            let paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
+            let paddingRight = parseFloat(computedStyle.paddingRight) || 0;
+            let borderLeft = parseFloat(computedStyle.borderLeftWidth) || 0;
+            let borderRight = parseFloat(computedStyle.borderRightWidth) || 0;
+            let extraWidth = paddingLeft + paddingRight + borderLeft + borderRight;
 
-        // Set the new width (with a small safety margin of 6px)
-        let newWidth = Math.max(400, maxLineWidth + extraWidth + 6);
-        let finalWidth = newWidth + 'px';
-        if (el.id !== 'math') {
-            if (el.style.width !== finalWidth) {
-                el.style.width = finalWidth;
-            }
-
-            // Only update the container width when this element is actually visible.
-            // In math mode, #ode is hidden (display:none) but still dispatches input events so
-            // its short nerdamer text would overwrite the wider container width that
-            // updateMathOverlay correctly set from the rendered KaTeX content.
-            const isVisible = el.style.display !== 'none';
-            const container = el.closest('.ode-input-container');
-            if (container && isVisible) {
-                container.style.width = finalWidth;
+            let newWidth = Math.max(400, maxLineWidth + extraWidth + 6);
+            let finalWidth = newWidth + 'px';
+            if (el.id !== 'math') {
+                if (el.style.width !== finalWidth) {
+                    el.style.width = finalWidth;
+                }
+                const isVisible = el.style.display !== 'none';
+                const container = el.closest('.ode-input-container');
+                if (container && isVisible) {
+                    container.style.width = finalWidth;
+                }
             }
         }
 
-        // Calculate accurate height mathematically to avoid layout thrashing/jittering
+        // Height calculation
         let paddingTop = parseFloat(computedStyle.paddingTop) || 0;
         let paddingBottom = parseFloat(computedStyle.paddingBottom) || 0;
         let borderTop = parseFloat(computedStyle.borderTopWidth) || 0;
@@ -434,17 +435,25 @@ function resizeTextarea(el) {
 
         let lineHeight = parseFloat(computedStyle.lineHeight);
         if (isNaN(lineHeight)) {
-            lineHeight = parseFloat(fontSize) * 1.15; // Fallback
+            lineHeight = parseFloat(fontSize) * 1.3; // standard line-height
         }
 
         let linesCount = lines.length;
         let extraPadding = 0;
-        if (el.id === 'math' && typeof window !== 'undefined' && window.mathSolverLastSolution) {
-            linesCount += 2; // Reserve 2 rows for the solution (aligned block renders taller)
-            extraPadding = 28; // Extra breathing room for the KaTeX aligned block
+        if (!isMobile && el.id === 'math' && typeof window !== 'undefined' && window.mathSolverLastSolution) {
+            linesCount += 2;
+            extraPadding = 28;
         }
 
-        let newHeight = Math.max(60, Math.ceil(linesCount * lineHeight + extraHeight + extraPadding));
+        let minHeight = isMobile ? 44 : 60;
+        let calculatedHeight = Math.ceil(linesCount * lineHeight + extraHeight + extraPadding);
+        let newHeight = Math.max(minHeight, calculatedHeight);
+
+        // On mobile, limit max height of textarea to 150px
+        if (isMobile) {
+            newHeight = Math.min(150, newHeight);
+        }
+
         let finalHeight = newHeight + 'px';
         if (el.style.height !== finalHeight) {
             el.style.height = finalHeight;
@@ -946,69 +955,53 @@ function toggleToolKit() {
     const tools = document.getElementById('tools');
     if (!tools) return;
 
-    const ode = document.getElementById("ode");
-    const math = document.getElementById("math");
-    const overlay = document.getElementById("ode-math-overlay");
-
     const toolsBtn = document.querySelector('.tools-btn');
     let currentDisplay = window.getComputedStyle(tools).display;
+
     if (currentDisplay === 'none') {
         tools.style.display = 'flex';
         if (toolsBtn) toolsBtn.classList.add('active');
+        setMode('math'); // default to MATH mode when opening toolkit
 
-        // Toggle display: hide ode, show math and overlay
-        if (ode) ode.style.display = 'none';
-        if (math) {
-            math.style.display = 'block';
-            math.classList.add('ode-transparent-text');
-            // Copy style from ode to math
-            if (ode) {
-                math.style.width = ode.style.width;
-                math.style.height = ode.style.height;
-                math.style.fontSize = window.getComputedStyle(ode).fontSize;
-                math.style.fontFamily = window.getComputedStyle(ode).fontFamily;
-                math.style.lineHeight = window.getComputedStyle(ode).lineHeight;
-                math.style.padding = window.getComputedStyle(ode).padding;
-                // Sync content and selection
-                math.value = mapOdeToLatex(ode.value);
+        // On mobile, if neither panel is displayed, open more-panel Page 1 by default
+        if (window.innerWidth <= 600) {
+            const morePanel = document.getElementById("more-panel");
+            const fxPanel = document.getElementById("functions-panel");
+            if (morePanel && fxPanel) {
+                if (morePanel.style.display === 'none' && fxPanel.style.display === 'none') {
+                    morePanel.style.display = 'flex';
+                    morePanel.classList.remove('mobile-sym-page');
+                    const moreBtn = document.getElementById("more-btn");
+                    if (moreBtn) moreBtn.classList.remove('active');
+                }
             }
-        }
-        if (overlay) {
-            overlay.style.display = 'flex';
-            if (ode) {
-                overlay.style.width = `calc(${ode.style.width || '100%'} - 4px)`;
-                overlay.style.height = `calc(${ode.style.height || '60px'} - 4px)`;
+        } else {
+            // On desktop, display the more-panel by default to show num & op btns
+            const morePanel = document.getElementById("more-panel");
+            if (morePanel) {
+                morePanel.style.display = 'flex';
             }
-        }
-
-        // Set initial caches
-        lastMathValue = math ? math.value : "";
-        lastOdeValue = ode ? ode.value : "";
-        updateMathOverlay();
-        if (math) {
-            math.focus();
-            syncSelectionToMath();
         }
     } else {
         tools.style.display = 'none';
+        tools.classList.remove('wide');
         if (toolsBtn) toolsBtn.classList.remove('active');
+        setMode('ode'); // default to ODE mode when closing toolkit
 
-        // Toggle display: show ode, hide math and overlay
-        if (ode) {
-            ode.style.display = 'block';
-            // Sync selection back from math to ode
-            if (math) {
-                syncSelectionToOde();
+        // Cleanup symbols active class on desktop morePanel
+        if (window.innerWidth > 600) {
+            const morePanel = document.getElementById("more-panel");
+            if (morePanel) {
+                morePanel.classList.remove('show-symbols');
+                MORE_SYMBOL_IDS.forEach(id => {
+                    const btn = document.getElementById(id);
+                    if (btn) btn.classList.remove('active');
+                });
+                showSubPanel(null);
             }
-            ode.focus();
-            // Trigger resize
-            ode.dispatchEvent(new Event('input'));
+            const moreBtn = document.getElementById("more-btn");
+            if (moreBtn) moreBtn.classList.remove('active');
         }
-        if (math) {
-            math.style.display = 'none';
-            math.classList.remove('ode-transparent-text');
-        }
-        if (overlay) overlay.style.display = 'none';
     }
 
     const gearIcon = document.querySelector('.tools-btn i');
@@ -1019,6 +1012,33 @@ function toggleToolKit() {
         setTimeout(() => {
             gearIcon.classList.remove('gear-spin');
         }, 600);
+    }
+}
+
+function collapseToolKit() {
+    const tools = document.getElementById('tools');
+    if (!tools) return;
+
+    const toolsBtn = document.querySelector('.tools-btn');
+    if (toolsBtn) toolsBtn.classList.remove('active');
+
+    tools.style.display = 'none';
+    tools.classList.remove('wide');
+    setMode('ode');
+
+    // Cleanup symbols active class on desktop morePanel
+    if (window.innerWidth > 600) {
+        const morePanel = document.getElementById("more-panel");
+        if (morePanel) {
+            morePanel.classList.remove('show-symbols');
+            MORE_SYMBOL_IDS.forEach(id => {
+                const btn = document.getElementById(id);
+                if (btn) btn.classList.remove('active');
+            });
+            showSubPanel(null);
+        }
+        const moreBtn = document.getElementById("more-btn");
+        if (moreBtn) moreBtn.classList.remove('active');
     }
 }
 
@@ -1419,6 +1439,7 @@ function updateMathOverlay() {
         const mathEl = document.getElementById("math");
         const overlayEl = document.getElementById("ode-math-overlay");
         const odeEl = document.getElementById("ode");
+        const isMobile = window.innerWidth <= 600;
 
         if (mathEl && overlayEl) {
             let isVisibleEl = window.getComputedStyle(overlayEl).display !== 'none';
@@ -1427,49 +1448,59 @@ function updateMathOverlay() {
                 overlayEl.offsetHeight;
 
                 if (mathEl.value === '') {
-                    mathEl.style.width = '400px';
-                    const container = mathEl.closest('.ode-input-container');
-                    if (container) container.style.width = '400px';
-                    if (odeEl) odeEl.style.width = '400px';
-                    overlayEl.style.width = '396px';
-
-                    mathEl.style.height = '60px';
-                    overlayEl.style.height = '56px';
-                    if (odeEl) odeEl.style.height = '60px';
-                } else {
-                    const katexEls = overlayEl.querySelectorAll('.katex-html, .katex');
-                    let contentW = 0;
-                    if (katexEls.length > 0) {
-                        katexEls.forEach(el => {
-                            let w = el.scrollWidth || el.getBoundingClientRect().width;
-                            if (w > contentW) contentW = w;
-                        });
-                    } else {
-                        contentW = overlayEl.scrollWidth - 20;
-                    }
-                    let maxAllowedW = 800;
-                    if (typeof window !== 'undefined') {
-                        maxAllowedW = window.innerWidth - 120;
-                    }
-                    let newWidth = Math.max(400, Math.ceil(contentW + 34));
-                    // Never allow the container to shrink while there is content — only grow.
-                    // This prevents the textarea from jumping narrower as matrix entries are typed.
-                    const currentW = parseFloat(mathEl.style.width) || 400;
-                    newWidth = Math.max(newWidth, currentW);
-                    newWidth = Math.min(newWidth, maxAllowedW);
-                    let finalWidth = newWidth + 'px';
-
-                    if (mathEl.style.width !== finalWidth) {
-                        mathEl.style.width = finalWidth;
+                    if (!isMobile) {
+                        mathEl.style.width = '400px';
                         const container = mathEl.closest('.ode-input-container');
-                        if (container) container.style.width = finalWidth;
-                        if (odeEl) odeEl.style.width = finalWidth;
-                        overlayEl.style.width = `calc(${finalWidth} - 4px)`;
+                        if (container) container.style.width = '400px';
+                        if (odeEl) odeEl.style.width = '400px';
+                        overlayEl.style.width = '396px';
+                    } else {
+                        mathEl.style.width = '';
+                        const container = mathEl.closest('.ode-input-container');
+                        if (container) container.style.width = '';
+                        if (odeEl) odeEl.style.width = '';
+                        overlayEl.style.width = '';
+                    }
+
+                    let defaultHeight = isMobile ? '44px' : '60px';
+                    mathEl.style.height = defaultHeight;
+                    overlayEl.style.height = `calc(${defaultHeight} - 4px)`;
+                    if (odeEl) odeEl.style.height = defaultHeight;
+                } else {
+                    if (!isMobile) {
+                        const katexEls = overlayEl.querySelectorAll('.katex-html, .katex');
+                        let contentW = 0;
+                        if (katexEls.length > 0) {
+                            katexEls.forEach(el => {
+                                let w = el.scrollWidth || el.getBoundingClientRect().width;
+                                if (w > contentW) contentW = w;
+                            });
+                        } else {
+                            contentW = overlayEl.scrollWidth - 20;
+                        }
+                        let maxAllowedW = window.innerWidth - 120;
+                        let newWidth = Math.max(400, Math.ceil(contentW + 34));
+                        const currentW = parseFloat(mathEl.style.width) || 400;
+                        newWidth = Math.max(newWidth, currentW);
+                        newWidth = Math.min(newWidth, maxAllowedW);
+                        let finalWidth = newWidth + 'px';
+
+                        if (mathEl.style.width !== finalWidth) {
+                            mathEl.style.width = finalWidth;
+                            const container = mathEl.closest('.ode-input-container');
+                            if (container) container.style.width = finalWidth;
+                            if (odeEl) odeEl.style.width = finalWidth;
+                            overlayEl.style.width = `calc(${finalWidth} - 4px)`;
+                        }
+                    } else {
+                        mathEl.style.width = '';
+                        const container = mathEl.closest('.ode-input-container');
+                        if (container) container.style.width = '';
+                        if (odeEl) odeEl.style.width = '';
+                        overlayEl.style.width = '';
                     }
 
                     // Height adjustment: Measure rendered KaTeX content height accurately.
-                    // We render a fresh KaTeX clone into an isolated, unconstrained div
-                    // so that the measurement is not affected by the overlay's clipping.
                     let contentH = 0;
 
                     const inputDiv = overlayEl.querySelector('.overlay-input');
@@ -1477,16 +1508,19 @@ function updateMathOverlay() {
                     if (inputDiv && solutionDiv) {
                         contentH = inputDiv.scrollHeight + solutionDiv.scrollHeight + 12;
                     } else {
-                        // Create a hidden measurement container that matches the overlay's font context
                         const measureDiv = document.createElement('div');
                         const overlayComputed = window.getComputedStyle(overlayEl);
+                        let measureWidth = isMobile ? overlayEl.getBoundingClientRect().width : overlayEl.clientWidth;
+                        if (measureWidth <= 0) {
+                            measureWidth = window.innerWidth - 80;
+                        }
                         measureDiv.style.cssText = [
                             'position:absolute',
                             'top:0',
                             'left:-9999px',
                             'visibility:hidden',
                             'height:auto',
-                            'width:' + overlayEl.clientWidth + 'px',
+                            'width:' + measureWidth + 'px',
                             'overflow:visible',
                             'font-size:' + overlayComputed.fontSize,
                             'font-family:' + overlayComputed.fontFamily,
@@ -1520,8 +1554,11 @@ function updateMathOverlay() {
                         scrollbarBuffer = 18;
                     }
 
-                    // contentH now naturally measures all rendered lines.
-                    const fitHeight = Math.max(60, Math.ceil(contentH + extraH + bufferH + scrollbarBuffer));
+                    let minHeight = isMobile ? 44 : 60;
+                    let fitHeight = Math.max(minHeight, Math.ceil(contentH + extraH + bufferH + scrollbarBuffer));
+                    if (isMobile) {
+                        fitHeight = Math.min(150, fitHeight);
+                    }
 
                     if (mathEl.style.height !== fitHeight + 'px') {
                         mathEl.style.height = fitHeight + 'px';
@@ -1836,10 +1873,25 @@ function translateLatexToNerdamer(latex) {
                     if (isDeriv) {
                         let isPartial = cleanNum.startsWith('partial') || cleanDen.startsWith('partial');
                         let diffCmd = isPartial ? 'pdiff' : 'diff';
-                        if (order === "1") {
-                            res += `${diffCmd}(${expr}, ${wrt})`;
+                        let isOdeMode = false;
+                        if (typeof document !== 'undefined') {
+                            const odeBtn = document.getElementById('mode-ode');
+                            if (odeBtn && odeBtn.classList.contains('active')) {
+                                isOdeMode = true;
+                            }
+                        }
+                        if (isOdeMode) {
+                            if (order === "1") {
+                                res += `d${expr}/d${wrt}`;
+                            } else {
+                                res += `d^${order}${expr}/d${wrt}^${order}`;
+                            }
                         } else {
-                            res += `${diffCmd}(${expr}, ${wrt}, ${order})`;
+                            if (order === "1") {
+                                res += `${diffCmd}(${expr}, ${wrt})`;
+                            } else {
+                                res += `${diffCmd}(${expr}, ${wrt}, ${order})`;
+                            }
                         }
                     } else {
                         res += `(${num})/(${den})`;
@@ -3992,6 +4044,8 @@ function toggleFunctionsPanel() {
         const moreBtn = document.getElementById("more-btn");
         if (morePanel && morePanel.style.display !== "none") {
             morePanel.style.display = "none";
+            const tools = document.getElementById("tools");
+            if (tools) tools.classList.remove("wide");
             if (moreBtn) moreBtn.classList.remove("active");
             // Cleanly deactivate all symbol modes and close subpanels
             MORE_SYMBOL_IDS.forEach(id => {
@@ -4003,6 +4057,37 @@ function toggleFunctionsPanel() {
     } else {
         panel.style.display = "none";
         if (fxBtn) fxBtn.classList.remove("active");
+
+        // On mobile, if we close functions-panel, show more-panel Page 1 as fallback
+        if (window.innerWidth <= 600) {
+            const morePanel = document.getElementById("more-panel");
+            if (morePanel) {
+                morePanel.style.display = "flex";
+                morePanel.classList.remove('mobile-sym-page');
+                const moreBtn = document.getElementById("more-btn");
+                if (moreBtn) moreBtn.classList.remove('active');
+            }
+        }
+    }
+}
+
+/* ── Mobile toolkit initialisation ──────────────────────────────────────
+   Tag the two operators-grid divs inside #more-panel so CSS can target
+   them independently (nums grid vs ops grid) without touching the HTML.
+   Called once after DOM ready and on resize.
+───────────────────────────────────────────────────────────────────────── */
+function initMobileToolkit() {
+    if (window.innerWidth > 600) return;
+    const morePanel = document.getElementById('more-panel');
+    if (!morePanel) return;
+    const content = morePanel.querySelector('.more-panel-content');
+    if (!content) return;
+    const grids = content.querySelectorAll(':scope > .operators-grid');
+    if (grids[0] && !grids[0].classList.contains('mobile-nums-grid')) {
+        grids[0].classList.add('mobile-nums-grid');
+    }
+    if (grids[1] && !grids[1].classList.contains('mobile-ops-grid')) {
+        grids[1].classList.add('mobile-ops-grid');
     }
 }
 
@@ -4010,8 +4095,55 @@ function toggleMoreFunctions() {
     const panel = document.getElementById("more-panel");
     const moreBtn = document.getElementById("more-btn");
     if (!panel) return;
-    if (panel.style.display === "none") {
-        panel.style.display = "flex";
+
+    // ── Mobile (≤600px): switch between page 1 (nums+ops) and page 2 (symbols) ──
+    if (window.innerWidth <= 600) {
+        // Close functions-panel first if open
+        const fxPanel = document.getElementById("functions-panel");
+        const fxBtn = document.getElementById("fx-btn");
+        if (fxPanel && fxPanel.style.display !== "none") {
+            fxPanel.style.display = "none";
+            if (fxBtn) fxBtn.classList.remove("active");
+
+            // Show more-panel and ensure it is Page 1 (default)
+            panel.style.display = "flex";
+            panel.classList.remove('mobile-sym-page');
+            if (moreBtn) moreBtn.classList.remove('active');
+            showSubPanel(null);
+            MORE_SYMBOL_IDS.forEach(id => {
+                const btn = document.getElementById(id);
+                if (btn) btn.classList.remove('active');
+            });
+            return;
+        }
+
+        // Otherwise, toggle pages
+        const isSymPage = panel.classList.contains('mobile-sym-page');
+        if (isSymPage) {
+            // Back to page 1 (nums + ops)
+            panel.classList.remove('mobile-sym-page');
+            if (moreBtn) moreBtn.classList.remove('active');
+            showSubPanel(null);
+            MORE_SYMBOL_IDS.forEach(id => {
+                const btn = document.getElementById(id);
+                if (btn) btn.classList.remove('active');
+            });
+        } else {
+            // Go to page 2 (all symbol subpanels)
+            panel.classList.add('mobile-sym-page');
+            if (moreBtn) moreBtn.classList.add('active');
+            // Select matrix tab by default
+            setSymbolMode('matrix');
+        }
+        return;
+    }
+
+    // ── Desktop: show/hide symbols panel ──
+    const tools = document.getElementById("tools");
+    const isSymbolsActive = panel.classList.contains("show-symbols");
+    if (!isSymbolsActive) {
+        panel.classList.add("show-symbols");
+        if (tools) tools.classList.add("wide");
         if (moreBtn) moreBtn.classList.add("active");
         // Close functions-panel if open
         const fxPanel = document.getElementById("functions-panel");
@@ -4020,8 +4152,15 @@ function toggleMoreFunctions() {
             fxPanel.style.display = "none";
             if (fxBtn) fxBtn.classList.remove("active");
         }
+        // Ensure one of the symbol subpanels is active by default on desktop too
+        let activeId = null;
+        if (document.getElementById('sym-complex') && document.getElementById('sym-complex').classList.contains('active')) activeId = 'complex';
+        else if (document.getElementById('sym-vector') && document.getElementById('sym-vector').classList.contains('active')) activeId = 'vector';
+        else if (document.getElementById('sym-matrix') && document.getElementById('sym-matrix').classList.contains('active')) activeId = 'matrix';
+        setSymbolMode(activeId || 'matrix');
     } else {
-        panel.style.display = "none";
+        panel.classList.remove("show-symbols");
+        if (tools) tools.classList.remove("wide");
         if (moreBtn) moreBtn.classList.remove("active");
         // Cleanly deactivate all symbol modes and close subpanels
         MORE_SYMBOL_IDS.forEach(id => {
@@ -4034,6 +4173,45 @@ function toggleMoreFunctions() {
 
 function laTeXDisplay(type) {
     let insertText = '';
+    let rows = 2, cols = 2;
+    let sizeCancelled = false;
+
+    const isMobile = window.innerWidth <= 600;
+
+    if (isMobile && (type === 'matrix_template' || type === 'matrix_identity' || type === 'matrix_null')) {
+        let defaultPromptVal = "2x2";
+        let promptMsg = "Enter matrix size (e.g. 3x3 or 3):";
+        if (type === 'matrix_identity') {
+            defaultPromptVal = "2";
+            promptMsg = "Enter identity matrix size (e.g. 3):";
+        }
+        let size = prompt(promptMsg, defaultPromptVal);
+        if (size === null) {
+            sizeCancelled = true;
+        } else {
+            let cleanSize = size.trim().toLowerCase().replace(/\\times/g, '*');
+            let valid = false;
+            if (/^\d+$/.test(cleanSize)) {
+                rows = parseInt(cleanSize);
+                cols = rows;
+                valid = true;
+            } else {
+                let parts = cleanSize.split(/[\*x,]/);
+                if (parts.length === 2 && /^\d+$/.test(parts[0].trim()) && /^\d+$/.test(parts[1].trim())) {
+                    rows = parseInt(parts[0].trim());
+                    cols = parseInt(parts[1].trim());
+                    valid = true;
+                }
+            }
+            if (!valid || rows <= 0 || cols <= 0) {
+                rows = 2;
+                cols = 2;
+            }
+        }
+    }
+
+    if (sizeCancelled) return;
+
     switch (type) {
         case 'int': insertText = 'integrate( , x)'; break;
         case 'intab': insertText = 'defint( , a, b, x)'; break;
@@ -4064,6 +4242,63 @@ function laTeXDisplay(type) {
         case 'complex': insertText = 'a+b*i'; break;
         case 'matrix': insertText = 'matrix([1,0],[0,1])'; break;
         case 'vector': insertText = 'vector(1, 0, 0)'; break;
+        case 'complex_conj': insertText = 'conjugate()'; break;
+        case 'complex_mod': insertText = 'abs()'; break;
+        case 'complex_arg': insertText = 'arg()'; break;
+        case 'complex_real': insertText = 'realpart()'; break;
+        case 'complex_imag': insertText = 'imagpart()'; break;
+        case 'complex_polar': insertText = 'polarform()'; break;
+        case 'complex_rect': insertText = 'rectform()'; break;
+        case 'vector_mag': insertText = 'mag()'; break;
+        case 'vector_normalize': insertText = 'normalize()'; break;
+        case 'vector_angle': insertText = 'angle( , )'; break;
+        case 'vector_1x3': insertText = '[1,0,0]'; break;
+        case 'vector_dot': insertText = 'dot( , )'; break;
+        case 'vector_cross': insertText = 'cross( , )'; break;
+        case 'matrix_template':
+            if (isMobile) {
+                let rowsArr = [];
+                for (let r = 0; r < rows; r++) {
+                    let colArr = Array(cols).fill('0');
+                    rowsArr.push(`[${colArr.join(',')}]`);
+                }
+                insertText = `matrix(${rowsArr.join(',')})`;
+            } else {
+                insertText = 'matrix([1,0],[0,1])';
+            }
+            break;
+        case 'matrix_transpose': insertText = 'transpose()'; break;
+        case 'matrix_det': insertText = 'det()'; break;
+        case 'matrix_inverse': insertText = 'invert()'; break;
+        case 'matrix_identity':
+            if (isMobile) {
+                let rowsArr = [];
+                for (let r = 0; r < rows; r++) {
+                    let colArr = Array(cols).fill('0');
+                    if (r < cols) colArr[r] = '1';
+                    rowsArr.push(`[${colArr.join(',')}]`);
+                }
+                insertText = `matrix(${rowsArr.join(',')})`;
+            } else {
+                insertText = 'identity()';
+            }
+            break;
+        case 'matrix_null':
+            if (isMobile) {
+                let rowsArr = [];
+                for (let r = 0; r < rows; r++) {
+                    let colArr = Array(cols).fill('0');
+                    rowsArr.push(`[${colArr.join(',')}]`);
+                }
+                insertText = `matrix(${rowsArr.join(',')})`;
+            } else {
+                insertText = 'null()';
+            }
+            break;
+        case 'matrix_eigenvalues': insertText = 'eigenvalues()'; break;
+        case 'matrix_eigenvectors': insertText = 'eigenvectors()'; break;
+        case 'matrix_rref': insertText = 'rref()'; break;
+        case 'matrix_basis': insertText = 'basis()'; break;
         default:
             insertText = type;
             break;
@@ -4093,12 +4328,14 @@ function laTeXDisplay(type) {
 
     const mathTextarea = document.getElementById("math");
     if (mathTextarea && mathTextarea.style.display !== 'none') {
-        kaTeXDisplay(type);
+        kaTeXDisplay(type, rows, cols);
     }
 }
 
-function kaTeXDisplay(type) {
+function kaTeXDisplay(type, rows = 2, cols = 2) {
     let insertText = '';
+    const isMobile = window.innerWidth <= 600;
+
     switch (type) {
         case 'int': insertText = '\\int {}\\, dx'; break;
         case 'intab': insertText = '\\int_{}^{} {}\\, dx'; break;
@@ -4124,9 +4361,68 @@ function kaTeXDisplay(type) {
         case 'ln': insertText = '\\ln{}'; break;
         case 'log': insertText = '\\log_{}{}'; break;
         case 'exp': insertText = '\\exp{}'; break;
+        case 'matrix': insertText = '\\begin{bmatrix}1 & 0 \\\\ 0 & 1\\end{bmatrix}'; break;
+        case 'vector': insertText = '\\begin{bmatrix}1 & 0 & 0\\end{bmatrix}'; break;
         case 'complex': insertText = 'a+bi'; break;
         case 'laplace': insertText = '\\mathcal{L}\\left\\{_\\right\\}(s)'; break;
         case 'invlaplace': insertText = '\\mathcal{L}^{-1}\\left\\{_\\right\\}(t)'; break;
+        case 'complex_conj': insertText = '\\text{conjugate}({})'; break;
+        case 'complex_mod': insertText = '\\lvert {} \\rvert'; break;
+        case 'complex_arg': insertText = '\\text{arg}({})'; break;
+        case 'complex_real': insertText = '\\text{realpart}({})'; break;
+        case 'complex_imag': insertText = '\\text{imagpart}({})'; break;
+        case 'complex_polar': insertText = '\\text{polarform}({})'; break;
+        case 'complex_rect': insertText = '\\text{rectform}({})'; break;
+        case 'vector_mag': insertText = '\\text{mag}({})'; break;
+        case 'vector_normalize': insertText = '\\text{normalize}({})'; break;
+        case 'vector_angle': insertText = '\\text{angle}({}, {})'; break;
+        case 'vector_1x3': insertText = '\\begin{bmatrix}1 & 0 & 0\\end{bmatrix}'; break;
+        case 'vector_dot': insertText = '\\text{dot}({}, {})'; break;
+        case 'vector_cross': insertText = '\\text{cross}({}, {})'; break;
+        case 'matrix_template':
+            if (isMobile) {
+                let rowsArr = [];
+                for (let r = 0; r < rows; r++) {
+                    let colArr = Array(cols).fill('_');
+                    rowsArr.push(colArr.join(' & '));
+                }
+                insertText = `\\begin{bmatrix}${rowsArr.join(' \\\\ ')}\\end{bmatrix}`;
+            } else {
+                insertText = '\\begin{bmatrix}\\end{bmatrix}_{_ \\times _}';
+            }
+            break;
+        case 'matrix_transpose': insertText = '{}^T'; break;
+        case 'matrix_det': insertText = '\\text{det}({})'; break;
+        case 'matrix_inverse': insertText = '{}^{-1}'; break;
+        case 'matrix_identity':
+            if (isMobile) {
+                let rowsArr = [];
+                for (let r = 0; r < rows; r++) {
+                    let colArr = Array(cols).fill('0');
+                    if (r < cols) colArr[r] = '1';
+                    rowsArr.push(colArr.join(' & '));
+                }
+                insertText = `\\begin{bmatrix}${rowsArr.join(' \\\\ ')}\\end{bmatrix}`;
+            } else {
+                insertText = '\\begin{bmatrix}I\\end{bmatrix}_{_ \\times _}';
+            }
+            break;
+        case 'matrix_null':
+            if (isMobile) {
+                let rowsArr = [];
+                for (let r = 0; r < rows; r++) {
+                    let colArr = Array(cols).fill('0');
+                    rowsArr.push(colArr.join(' & '));
+                }
+                insertText = `\\begin{bmatrix}${rowsArr.join(' \\\\ ')}\\end{bmatrix}`;
+            } else {
+                insertText = '\\begin{bmatrix}O\\end{bmatrix}_{_ \\times _}';
+            }
+            break;
+        case 'matrix_eigenvalues': insertText = '\\text{eigenvalues}({})'; break;
+        case 'matrix_eigenvectors': insertText = '\\text{eigenvectors}({})'; break;
+        case 'matrix_rref': insertText = '\\text{rref}({})'; break;
+        case 'matrix_basis': insertText = '\\text{basis}({})'; break;
         default:
             insertText = type;
             break;
@@ -4143,7 +4439,21 @@ function kaTeXDisplay(type) {
     textarea.value = value.substring(0, start) + insertText + value.substring(end);
 
     let newCursorPos = start + insertText.length;
-    if (type === 'diffn') {
+    let selectsOneChar = false;
+    if (type === 'matrix_template' || type === 'matrix_identity' || type === 'matrix_null') {
+        if (isMobile) {
+            let firstUnder = insertText.indexOf('_');
+            if (firstUnder !== -1) {
+                newCursorPos = start + firstUnder;
+                selectsOneChar = true;
+            }
+        } else {
+            let subStart = insertText.indexOf('_{');
+            let underIdx = insertText.indexOf('_', subStart + 2);
+            newCursorPos = start + underIdx;
+            selectsOneChar = true;
+        }
+    } else if (type === 'diffn') {
         newCursorPos = start + 9;
     } else if (type === 'nrt') {
         newCursorPos = start + 6;
@@ -4155,10 +4465,11 @@ function kaTeXDisplay(type) {
     } else if (type === 'laplace' || type === 'invlaplace') {
         let underIdx = insertText.indexOf('_');
         newCursorPos = start + underIdx;
+        selectsOneChar = true;
     }
 
     textarea.focus();
-    if (type === 'laplace' || type === 'invlaplace') {
+    if (selectsOneChar) {
         textarea.setSelectionRange(newCursorPos, newCursorPos + 1);
     } else {
         textarea.setSelectionRange(newCursorPos, newCursorPos);
@@ -4271,6 +4582,11 @@ if (typeof document !== 'undefined') {
             });
             math.addEventListener('focus', function () {
                 onSelectionChange();
+                const toolsBtn = document.querySelector('.tools-btn');
+                const tools = document.getElementById('tools');
+                if (toolsBtn && toolsBtn.classList.contains('active') && tools) {
+                    tools.style.display = 'flex';
+                }
             });
             math.addEventListener('keydown', function (e) {
                 // Auto-select underscore placeholder when typing to overwrite it
@@ -4292,7 +4608,6 @@ if (typeof document !== 'undefined') {
                             this.dispatchEvent(new Event('input'));
                         }, 0);
                     } else {
-                        e.preventDefault();
                         const pos = this.selectionStart;
                         const val = this.value;
 
@@ -4378,6 +4693,7 @@ if (typeof document !== 'undefined') {
                                     }
 
                                     if (validSize) {
+                                        e.preventDefault(); // Intercept!
                                         let newMatrix = '';
                                         if (matrixContent.trim() === 'I') {
                                             let rowsArr = [];
@@ -4435,6 +4751,7 @@ if (typeof document !== 'undefined') {
                         // Look for next placeholder starting from cursor position
                         let nextUnderIdx = findNextPlaceholder(val, pos);
                         if (nextUnderIdx !== -1) {
+                            e.preventDefault(); // Intercept!
                             selectPlaceholder(this, nextUnderIdx);
                             onSelectionChange();
                             return;
@@ -4445,6 +4762,7 @@ if (typeof document !== 'undefined') {
                         if (endMatrixIdx !== -1) {
                             let closingBraceIdx = val.indexOf('}', endMatrixIdx);
                             if (closingBraceIdx !== -1) {
+                                e.preventDefault(); // Intercept!
                                 this.setSelectionRange(closingBraceIdx + 1, closingBraceIdx + 1);
                                 onSelectionChange();
                                 return;
@@ -4453,6 +4771,7 @@ if (typeof document !== 'undefined') {
 
                         const { template, partIndex } = getInnermostTemplatePart(val, pos);
                         if (template && partIndex !== -1) {
+                            e.preventDefault(); // Intercept!
                             let newCursorPos;
                             if (partIndex + 1 < template.parts.length) {
                                 if (template.type === 'diffn' && partIndex === 0 && template.parts.length > 2) {
@@ -4488,6 +4807,7 @@ if (typeof document !== 'undefined') {
                         }
 
                         if (foundDelimiter !== null) {
+                            e.preventDefault(); // Intercept!
                             let nextCursorPos = foundIndex + foundDelimiter.length;
                             while (nextCursorPos <= val.length && !isAllowed(val, nextCursorPos)) {
                                 nextCursorPos++;
@@ -4496,6 +4816,11 @@ if (typeof document !== 'undefined') {
                             onSelectionChange();
                             return;
                         }
+
+                        // Fallback: If no intercept matches, let the newline be inserted and trigger input resize
+                        setTimeout(() => {
+                            this.dispatchEvent(new Event('input'));
+                        }, 0);
                     }
                 }
                 else if (e.key === 'Tab') {
@@ -5280,12 +5605,73 @@ function setMode(mode) {
     const odeBtn = document.getElementById('mode-ode');
     const mathBtn = document.getElementById('mode-math');
     if (!odeBtn || !mathBtn) return;
+
+    const ode = document.getElementById("ode");
+    const math = document.getElementById("math");
+    const overlay = document.getElementById("ode-math-overlay");
+    const isMobile = window.innerWidth <= 600;
+
     if (mode === 'ode') {
         odeBtn.classList.add('active');
         mathBtn.classList.remove('active');
+
+        // Show ODE, hide MATH
+        if (ode) {
+            ode.style.display = 'block';
+            if (math) {
+                syncSelectionToOde();
+            }
+            ode.dispatchEvent(new Event('input'));
+            ode.focus();
+        }
+        if (math) {
+            math.style.display = 'none';
+            math.classList.remove('ode-transparent-text');
+        }
+        if (overlay) overlay.style.display = 'none';
     } else {
         mathBtn.classList.add('active');
         odeBtn.classList.remove('active');
+
+        // Show MATH, hide ODE
+        if (ode) ode.style.display = 'none';
+        if (math) {
+            math.style.display = 'block';
+            math.classList.add('ode-transparent-text');
+            if (ode) {
+                // copy styles
+                if (!isMobile) {
+                    math.style.width = ode.style.width;
+                    math.style.height = ode.style.height;
+                } else {
+                    math.style.width = '';
+                    math.style.height = '';
+                }
+                math.style.fontSize = window.getComputedStyle(ode).fontSize;
+                math.style.fontFamily = window.getComputedStyle(ode).fontFamily;
+                math.style.lineHeight = window.getComputedStyle(ode).lineHeight;
+                math.style.padding = window.getComputedStyle(ode).padding;
+                // Sync content
+                math.value = mapOdeToLatex(ode.value);
+            }
+            if (overlay) {
+                overlay.style.display = 'flex';
+                if (ode) {
+                    if (!isMobile) {
+                        overlay.style.width = `calc(${ode.style.width || '100%'} - 4px)`;
+                        overlay.style.height = `calc(${ode.style.height || '60px'} - 4px)`;
+                    } else {
+                        overlay.style.width = '';
+                        overlay.style.height = '';
+                    }
+                }
+            }
+            lastMathValue = math.value;
+            lastOdeValue = ode ? ode.value : "";
+            updateMathOverlay();
+            math.focus();
+            syncSelectionToMath();
+        }
     }
 }
 
@@ -5352,6 +5738,44 @@ function insertSymbolOp(op) {
 
     let insertText = "";
     let newCursor = start;
+    let rows = 2, cols = 2;
+    let sizeCancelled = false;
+
+    const isMobile = window.innerWidth <= 600;
+
+    if (isMobile && (op === 'matrix_template' || op === 'identity' || op === 'null')) {
+        let defaultPromptVal = "2x2";
+        let promptMsg = "Enter matrix size (e.g. 3x3 or 3):";
+        if (op === 'identity') {
+            defaultPromptVal = "2";
+            promptMsg = "Enter identity matrix size (e.g. 3):";
+        }
+        let size = prompt(promptMsg, defaultPromptVal);
+        if (size === null) {
+            sizeCancelled = true;
+        } else {
+            let cleanSize = size.trim().toLowerCase().replace(/\\times/g, '*');
+            let valid = false;
+            if (/^\d+$/.test(cleanSize)) {
+                rows = parseInt(cleanSize);
+                cols = rows;
+                valid = true;
+            } else {
+                let parts = cleanSize.split(/[\*x,]/);
+                if (parts.length === 2 && /^\d+$/.test(parts[0].trim()) && /^\d+$/.test(parts[1].trim())) {
+                    rows = parseInt(parts[0].trim());
+                    cols = parseInt(parts[1].trim());
+                    valid = true;
+                }
+            }
+            if (!valid || rows <= 0 || cols <= 0) {
+                rows = 2;
+                cols = 2;
+            }
+        }
+    }
+
+    if (sizeCancelled) return;
 
     switch (op) {
         case 'conjugate':
@@ -5419,11 +5843,20 @@ function insertSymbolOp(op) {
             break;
 
         case 'matrix_template':
-            insertText = `\\begin{bmatrix}\\end{bmatrix}_{_ \\times _}`;
-            {
-                let subStart = insertText.indexOf('_{');
-                let underIdx = insertText.indexOf('_', subStart + 2);
-                newCursor = start + underIdx;
+            if (isMobile) {
+                let rowsArr = [];
+                for (let r = 0; r < rows; r++) {
+                    let colArr = Array(cols).fill('_');
+                    rowsArr.push(colArr.join(' & '));
+                }
+                insertText = `\\begin{bmatrix}${rowsArr.join(' \\\\ ')}\\end{bmatrix}`;
+            } else {
+                insertText = `\\begin{bmatrix}\\end{bmatrix}_{_ \\times _}`;
+                {
+                    let subStart = insertText.indexOf('_{');
+                    let underIdx = insertText.indexOf('_', subStart + 2);
+                    newCursor = start + underIdx;
+                }
             }
             break;
         case 'transpose':
@@ -5462,19 +5895,38 @@ function insertSymbolOp(op) {
             }
             break;
         case 'identity':
-            insertText = `\\begin{bmatrix}I\\end{bmatrix}_{_ \\times _}`;
-            {
-                let subStart = insertText.indexOf('_{');
-                let underIdx = insertText.indexOf('_', subStart + 2);
-                newCursor = start + underIdx;
+            if (isMobile) {
+                let rowsArr = [];
+                for (let r = 0; r < rows; r++) {
+                    let colArr = Array(cols).fill('0');
+                    if (r < cols) colArr[r] = '1';
+                    rowsArr.push(colArr.join(' & '));
+                }
+                insertText = `\\begin{bmatrix}${rowsArr.join(' \\\\ ')}\\end{bmatrix}`;
+            } else {
+                insertText = `\\begin{bmatrix}I\\end{bmatrix}_{_ \\times _}`;
+                {
+                    let subStart = insertText.indexOf('_{');
+                    let underIdx = insertText.indexOf('_', subStart + 2);
+                    newCursor = start + underIdx;
+                }
             }
             break;
         case 'null':
-            insertText = `\\begin{bmatrix}O\\end{bmatrix}_{_ \\times _}`;
-            {
-                let subStart = insertText.indexOf('_{');
-                let underIdx = insertText.indexOf('_', subStart + 2);
-                newCursor = start + underIdx;
+            if (isMobile) {
+                let rowsArr = [];
+                for (let r = 0; r < rows; r++) {
+                    let colArr = Array(cols).fill('0');
+                    rowsArr.push(colArr.join(' & '));
+                }
+                insertText = `\\begin{bmatrix}${rowsArr.join(' \\\\ ')}\\end{bmatrix}`;
+            } else {
+                insertText = `\\begin{bmatrix}O\\end{bmatrix}_{_ \\times _}`;
+                {
+                    let subStart = insertText.indexOf('_{');
+                    let underIdx = insertText.indexOf('_', subStart + 2);
+                    newCursor = start + underIdx;
+                }
             }
             break;
         case 'eigenvalues':
@@ -5500,7 +5952,18 @@ function insertSymbolOp(op) {
 
     math.focus();
     if (op === 'matrix_template' || op === 'identity' || op === 'null') {
-        math.setSelectionRange(newCursor, newCursor + 1);
+        if (isMobile) {
+            let firstUnder = insertText.indexOf('_');
+            if (firstUnder !== -1) {
+                newCursor = start + firstUnder;
+                math.setSelectionRange(newCursor, newCursor + 1);
+            } else {
+                newCursor = start + insertText.length;
+                math.setSelectionRange(newCursor, newCursor);
+            }
+        } else {
+            math.setSelectionRange(newCursor, newCursor + 1);
+        }
     } else if (op === 'normalize' || op === 'angle') {
         let firstBracket = math.value.indexOf('[]', start);
         if (firstBracket !== -1) {
@@ -5660,7 +6123,27 @@ function simplifyFractionsInText(str) {
                 return simple;
             }
         } else {
-            // It simplified to an integer!
+            // It simplified to an integer or decimal!
+            return simple;
+        }
+        return match;
+    });
+
+    // 3. Simplify LaTeX fractions like \frac{12345}{67890}
+    str = str.replace(/\\frac\{\s*(-?\d+)\s*\}\{\s*(-?\d+)\s*\}/g, (match, numStr, denStr) => {
+        let num = parseInt(numStr);
+        let den = parseInt(denStr);
+        let val = num / den;
+        let simple = toSimpleFraction(val);
+        if (simple.includes('/')) {
+            let parts = simple.split('/');
+            let newNum = parseInt(parts[0]);
+            let newDen = parseInt(parts[1]);
+            if (Math.abs(newDen) < Math.abs(den)) {
+                return `\\frac{${newNum}}{${newDen}}`;
+            }
+        } else {
+            // It simplified to an integer or decimal!
             return simple;
         }
         return match;
@@ -9610,7 +10093,8 @@ function toSimpleFraction(val) {
         if (best_den === 1) return sign + best_num.toString();
         return sign + `${best_num}/${best_den}`;
     }
-    return sign + val.toString();
+    let rounded = parseFloat(val.toFixed(4));
+    return sign + rounded.toString();
 }
 
 function evalNerd(expr) {
@@ -10616,7 +11100,111 @@ if (typeof document !== 'undefined') {
 
         // Initialize history load
         renderSavedSolutions();
+        // Tag mobile grids for CSS targeting
+        initMobileToolkit();
+        // Set initial state based on current viewport
+        handleViewportTransition(window.innerWidth <= 600);
     });
+
+    let lastWasMobile = window.innerWidth <= 600;
+    // Re-tag on orientation/resize change and handle transitions
+    window.addEventListener('resize', function () {
+        const isMobile = window.innerWidth <= 600;
+        if (isMobile) {
+            initMobileToolkit();
+        }
+        if (isMobile !== lastWasMobile) {
+            handleViewportTransition(isMobile);
+            lastWasMobile = isMobile;
+        }
+    });
+}
+
+function handleViewportTransition(isMobile) {
+    const math = document.getElementById("math");
+    const ode = document.getElementById("ode");
+    const overlay = document.getElementById("ode-math-overlay");
+    const container = math ? math.closest('.ode-input-container') : null;
+    const solutionPanel = document.getElementById('solutionPanel');
+    const plotPanel = document.getElementById('plotPanel');
+    const savedPanel = document.getElementById('savedPanel');
+    const panelTabRow = document.getElementById('panelTabRow');
+    const outputRow = document.getElementById('outputRow');
+    const backdrop = document.getElementById('mobile-saved-backdrop');
+
+    if (isMobile) {
+        // Clear desktop specific inline widths/heights so CSS overrides can take over
+        if (math) {
+            math.style.width = '';
+            math.style.height = '';
+        }
+        if (ode) {
+            ode.style.width = '';
+            ode.style.height = '';
+        }
+        if (overlay) {
+            overlay.style.width = '';
+            overlay.style.height = '';
+        }
+        if (container) {
+            container.style.width = '';
+        }
+
+        // Hide all mobile panels by default when switching to mobile to start clean
+        if (solutionPanel) {
+            solutionPanel.style.display = 'none';
+            solutionPanel.classList.remove('mobile-visible');
+        }
+        if (plotPanel) {
+            plotPanel.style.display = 'none';
+            plotPanel.classList.remove('mobile-visible');
+        }
+        if (savedPanel) {
+            savedPanel.style.display = 'none';
+            savedPanel.classList.remove('mobile-visible');
+        }
+        if (panelTabRow) panelTabRow.style.display = 'none';
+        if (outputRow) outputRow.style.display = 'none';
+        if (backdrop) backdrop.classList.remove('visible');
+    } else {
+        // Desktop: Clean up mobile specific classes and inline style overrides
+        if (solutionPanel) {
+            solutionPanel.style.display = '';
+            solutionPanel.style.flex = '';
+            solutionPanel.classList.remove('mobile-visible');
+        }
+        if (plotPanel) {
+            plotPanel.style.display = '';
+            plotPanel.style.flex = '';
+            plotPanel.classList.remove('mobile-visible');
+        }
+        if (savedPanel) {
+            savedPanel.style.display = 'none'; // Keep saved panel closed by default
+            savedPanel.style.flex = '';
+            savedPanel.classList.remove('mobile-visible');
+        }
+
+        // On desktop, the output panels should be visible if we have a solution
+        const hasSolution = typeof window !== 'undefined' && window.mathSolverLastSolution;
+        if (panelTabRow) {
+            panelTabRow.style.display = hasSolution ? 'flex' : 'none';
+        }
+        if (outputRow) {
+            outputRow.style.display = hasSolution ? 'flex' : 'none';
+        }
+        if (backdrop) {
+            backdrop.classList.remove('visible');
+            backdrop.style.display = 'none';
+        }
+
+        // Trigger resize on textareas to compute desktop-specific widths/heights
+        if (math) resizeTextarea(math);
+        if (ode) resizeTextarea(ode);
+        if (math && window.getComputedStyle(math).display !== 'none') {
+            updateMathOverlay();
+        }
+        updatePanelFlex();
+    }
 }
 
 function syncNormalize(val, cursor) {
