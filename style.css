@@ -603,6 +603,13 @@ main {
     box-sizing: border-box;
 }
 
+@media (min-width: 601px) {
+    .ode-input-row {
+        max-width: 468px;
+        margin: 0 auto;
+    }
+}
+
 .ode-btn-group {
     display: flex;
     flex-direction: column;
@@ -909,7 +916,8 @@ code {
 }
 
 .math-overlay-line {
-    height: 20px;
+    min-height: 20px;
+    height: auto;
     line-height: 20px;
     display: flex;
     align-items: center;
@@ -1200,7 +1208,7 @@ code {
     }
 
     .hero-title {
-        font-size: 2rem;
+        font-size: clamp(1rem, 5vw, 2rem);
     }
 }
 
@@ -1213,8 +1221,8 @@ code {
     background: #fdfdfd;
     border: 1.5px solid #d0d0d0;
     border-radius: 12px;
-    padding: 20px;
-    max-width: 450px;
+    padding: 22px 15px;
+    max-width: 468px;
     margin: 15px auto;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     transition: all 0.3s ease;
@@ -1232,8 +1240,8 @@ code {
 
 .operators-grid {
     display: grid;
-    grid-template-columns: repeat(4, 56px);
-    gap: 8px;
+    grid-template-columns: repeat(4, 52px);
+    gap: 6px;
     justify-content: center;
 }
 
@@ -1246,8 +1254,8 @@ code {
 
 .functions-panel {
     display: grid;
-    grid-template-columns: repeat(4, 56px);
-    gap: 8px;
+    grid-template-columns: repeat(4, 52px);
+    gap: 6px;
     justify-content: center;
     margin-top: 10px;
     margin-bottom: 10px;
@@ -1255,15 +1263,76 @@ code {
 }
 
 .more-panel {
-    flex-direction: row;
-    flex-wrap: nowrap;
-    justify-content: center;
+    display: none;
+    flex-direction: column;
     align-items: center;
-    gap: 6px;
+    gap: 10px;
     margin-top: 10px;
     margin-bottom: 10px;
     width: 100%;
 }
+
+.symbol-toggle-row {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    margin-bottom: 12px;
+}
+
+.more-panel-content {
+    display: grid;
+    grid-template-columns: repeat(2, auto);
+    justify-content: center;
+    gap: 15px;
+    width: 100%;
+}
+
+.more-panel-content > .symbol-subpanel {
+    grid-column: span 2;
+    justify-self: center;
+    width: 100%;
+    max-width: 414px;
+    min-height: auto;
+    gap: 6px;
+}
+
+.more-panel-content > .symbol-subpanel button.subpanel-btn {
+    min-width: 72px;
+    height: 36px !important;
+    font-size: 0.7rem !important;
+}
+
+.more-panel-content > .nums-grid {
+    grid-template-columns: repeat(3, 52px);
+    gap: 6px;
+}
+
+.more-panel-content > .nums-grid button.num-btn {
+    width: 52px !important;
+    min-width: 52px !important;
+    max-width: 52px !important;
+    height: 44px !important;
+}
+
+.tool-kit.wide {
+    max-width: 468px;
+}
+
+.tool-kit:has(#more-panel:not([style*="display: none"])) {
+    max-width: 468px;
+}
+
+@media (min-width: 601px) {
+    #more-panel:not(.show-symbols) .symbol-toggle-row {
+        display: none !important;
+    }
+    #more-panel:not(.show-symbols) .symbol-subpanel {
+        display: none !important;
+    }
+}
+
 
 .tool-kit button.more-symbol-btn {
     flex: 0 0 52px !important;
@@ -1296,10 +1365,10 @@ code {
 
 
 .tool-kit button.fun-btn {
-    width: 56px;
-    min-width: 56px;
-    max-width: 56px;
-    height: 42px !important;
+    width: 52px;
+    min-width: 52px;
+    max-width: 52px;
+    height: 44px !important;
     padding: 0;
     font-size: 0.8rem !important;
     border-radius: 8px;
@@ -1326,33 +1395,26 @@ code {
     align-items: center;
     justify-content: center;
     min-width: 42px;
-    height: 42px;
+    height: 44px;
     color: #333333;
     width: auto;
 }
 
-.tool-kit button.op-btn {
-    width: 56px;
-    min-width: 56px;
-    max-width: 56px;
-    padding: 0;
-    flex: 0 0 56px;
-    transition: transform 0.1s ease, border-color 0.15s ease;
-}
-
+.tool-kit button.op-btn,
 .tool-kit button.num-btn {
-    width: 42px;
-    min-width: 42px;
-    max-width: 42px;
+    width: 52px;
+    min-width: 52px;
+    max-width: 52px;
+    height: 44px !important;
     padding: 0;
-    flex: 0 0 42px;
+    flex: 0 0 52px;
     transition: transform 0.1s ease, border-color 0.15s ease;
 }
 
 .mode-toggle-row {
     display: flex;
     width: 100%;
-    gap: 8px;
+    gap: 6px;
     justify-content: center;
     margin-bottom: 8px;
 }
@@ -1376,10 +1438,10 @@ code {
     cursor: pointer;
     transition: all 0.25s ease;
     color: #555555;
-    flex: 0 0 46px;
-    width: 46px;
-    min-width: 46px;
-    max-width: 46px;
+    flex: 0 0 43px;
+    width: 43px;
+    min-width: 43px;
+    max-width: 43px;
     height: 28px !important;
     display: inline-flex;
     align-items: center;
@@ -1476,13 +1538,12 @@ code {
     text-shadow: 0 0 8px rgba(26, 158, 92, 0.18);
 }
 
-/* ── Symbol Sub-panel styling ── */
 .symbol-subpanel {
     border: 2px solid #00a994;
     border-radius: 12px;
     padding: 12px 10px;
-    margin: 10px auto;
-    width: calc(100% - 10px);
+    margin: 0;
+    width: 250px;
     box-sizing: border-box;
     display: flex;
     flex-direction: row;
@@ -1491,6 +1552,7 @@ code {
     justify-content: center;
     background-color: #f6fdfc;
     transition: all 0.3s ease;
+    flex-shrink: 0;
 }
 
 .symbol-subpanel button.subpanel-btn {
@@ -1783,9 +1845,12 @@ code {
     }
 
     body {
-        height: 100dvh;                  /* initial baseline before JS runs */
-        height: -webkit-fill-available;  /* iOS Safari initial baseline */
-        overflow-y: auto;                /* allow scroll on tall pages */
+        height: 100dvh;
+        /* initial baseline before JS runs */
+        height: -webkit-fill-available;
+        /* iOS Safari initial baseline */
+        overflow-y: auto;
+        /* allow scroll on tall pages */
     }
 
     /* ── Header: compact, search icon always far-right ── */
@@ -1814,7 +1879,8 @@ code {
     }
 
     .search-icon {
-        margin-left: 0;            /* flex:1 on #webname handles the push */
+        margin-left: 0;
+        /* flex:1 on #webname handles the push */
         margin-right: 6px;
         flex-shrink: 0;
         font-size: 0.9rem;
@@ -1825,7 +1891,8 @@ code {
         display: flex;
         flex-direction: row;
         flex-wrap: nowrap;
-        position: relative;            /* anchor for the open dropdown */
+        position: relative;
+        /* anchor for the open dropdown */
         background: black;
         width: 100%;
         box-sizing: border-box;
@@ -1869,7 +1936,8 @@ code {
 
     /* ── OPEN STATE: compact floating dropdown below active item ── */
     .nav-bar.nav-open {
-        align-items: center;           /* nav bar height unchanged */
+        align-items: center;
+        /* nav bar height unchanged */
     }
 
     .nav-bar.nav-open ul:not(#social-links) {
@@ -1945,7 +2013,8 @@ code {
     /* ── Footer: stick to bottom, no gap ── */
     footer {
         flex-shrink: 0;
-        margin-top: auto;          /* flex push — fills any leftover space above */
+        margin-top: auto;
+        /* flex push — fills any leftover space above */
         flex-wrap: wrap;
         padding: 8px 12px;
         font-size: 0.78rem;
@@ -1969,10 +2038,14 @@ code {
         gap: 20px;
     }
 
-    .antex-right { display: none; }
+    .antex-right {
+        display: none;
+    }
 
     /* Support link pills wrap */
-    .support-links-row { flex-wrap: wrap; }
+    .support-links-row {
+        flex-wrap: wrap;
+    }
 
     .support-link-card {
         min-width: calc(50% - 8px);
@@ -1980,10 +2053,14 @@ code {
     }
 
     /* Contact cards stack */
-    .contact-cards { flex-direction: column; }
+    .contact-cards {
+        flex-direction: column;
+    }
 
     /* Help panel */
-    #help-panel { max-width: 92vw; }
+    #help-panel {
+        max-width: 92vw;
+    }
 }
 
 
@@ -2084,7 +2161,8 @@ code {
     }
 
     .toolkit-grids-container {
-        flex-direction: column;    /* operators on top, numbers below */
+        flex-direction: column;
+        /* operators on top, numbers below */
         gap: 8px;
         width: 100%;
         align-items: stretch;
@@ -3097,4 +3175,820 @@ code {
     background: rgba(0, 220, 180, 0.15);
     border-color: rgba(0, 220, 180, 0.35);
     color: #7dffd8;
+}
+
+.panel-close-btn {
+    display: none;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MOBILE APP REDESIGN  ≤ 480 px
+   Makes the site feel like a native app on smartphones.
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width: 600px) {
+
+    /* ── Global: no horizontal scroll, full viewport ── */
+    html,
+    body {
+        width: 100%;
+        max-width: 100vw;
+        overflow-x: hidden;
+        box-sizing: border-box;
+    }
+
+    body {
+        height: 100dvh;
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        font-size: 16px;
+    }
+
+    /* ── Top bar: compact, app-bar style ── */
+    .top-bar {
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        width: 100%;
+        box-sizing: border-box;
+        flex-shrink: 0;
+    }
+
+    header {
+        padding: 4px 10px;
+        margin: 0;
+        min-height: 44px;
+        box-sizing: border-box;
+        width: 100%;
+        gap: 8px;
+    }
+
+    #gabs_icon {
+        height: 36px !important;
+        width: 36px !important;
+        flex-shrink: 0;
+    }
+
+    #webname {
+        flex: 1;
+        font-size: 1em;
+        margin: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .search-icon {
+        margin-left: 0;
+        margin-right: 6px;
+        flex-shrink: 0;
+        font-size: 0.95rem;
+    }
+
+    /* ── Nav bar: dropdown style on mobile ── */
+    .nav-bar {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        width: 100%;
+        box-sizing: border-box;
+        align-items: center;
+        background: black;
+        position: relative;
+    }
+
+    .nav-bar ul:not(#social-links) {
+        display: flex;
+        flex-direction: row;
+        flex-shrink: 1;
+        margin: 0;
+        padding: 0;
+    }
+
+    .nav-bar ul:not(#social-links) li {
+        display: none;
+    }
+
+    .nav-bar ul:not(#social-links) li.active {
+        display: flex;
+        align-items: center;
+    }
+
+    .nav-bar ul:not(#social-links) li.active::after {
+        content: '\25BE';
+        padding: 0 8px 0 4px;
+        color: rgba(255, 255, 255, 0.55);
+        font-size: 0.9rem;
+        pointer-events: none;
+    }
+
+    .nav-bar.nav-open ul:not(#social-links) {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        flex-direction: column;
+        width: auto;
+        min-width: 160px;
+        z-index: 1200;
+        background: rgba(10, 10, 10, 0.97);
+        border-radius: 0 0 12px 0;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+    }
+
+    .nav-bar.nav-open ul:not(#social-links) li {
+        display: flex;
+        align-items: center;
+        width: 100%;
+    }
+
+    .nav-bar.nav-open ul:not(#social-links) li.active::after {
+        transform: rotate(180deg);
+    }
+
+    .nav-bar a {
+        font-size: 0.82rem;
+        padding: 10px 16px;
+        white-space: nowrap;
+        display: block;
+        box-sizing: border-box;
+    }
+
+    #social-links {
+        display: flex !important;
+        flex-direction: row;
+        align-items: center;
+        margin-left: auto;
+        padding: 0 8px;
+        gap: 14px;
+        flex-shrink: 0;
+    }
+
+    #social-links li {
+        display: flex !important;
+        width: auto !important;
+        border-bottom: none !important;
+    }
+
+    /* ── HOME PAGE: full-screen hero, ants contained ── */
+
+    .home-main {
+        flex: 1;
+        overflow: hidden;
+        padding: 0 8px 8px;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        max-width: 100vw;
+        box-sizing: border-box;
+    }
+
+    .hero {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .hero-intro {
+        padding: 6px 0 0;
+        width: 100%;
+    }
+
+    /* Hello! text: large and impactful on mobile */
+    .mascot-intro {
+        font-size: clamp(3rem, 14vw, 4.5rem);
+        gap: 6px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    /* Queen ant: constrained to prevent overflow */
+    .queen-wrapper {
+        display: inline-block;
+        max-width: min(38vw, 140px);
+    }
+
+    .queen-black {
+        height: clamp(70px, 14vh, 130px);
+        width: auto;
+        max-width: 100%;
+    }
+
+    /* Ant overlays: clip to viewport so ants never scroll the page */
+    #ambient-ant-overlay,
+    #ant-swarm-overlay {
+        position: fixed;
+        inset: 0;
+        overflow: hidden;
+        pointer-events: none;
+        max-width: 100vw;
+        max-height: 100vh;
+    }
+
+    /* Ants: smaller on mobile */
+    .ambient-ant {
+        width: 16px;
+        height: 16px;
+    }
+
+    .swarm-ant {
+        width: 20px;
+        height: 20px;
+    }
+
+    .hero-reveal {
+        padding: 2px 8px 4px;
+        width: 100%;
+    }
+
+    .hero-title {
+        font-size: clamp(1rem, 5vw, 1.35rem);
+        margin: 4px 0 6px;
+        line-height: 1.2;
+    }
+
+    .hero-sub {
+        font-size: 0.74rem;
+        margin: 0 auto 8px;
+        line-height: 1.55;
+        max-width: 95%;
+    }
+
+    .cta-btn {
+        padding: 11px 24px;
+        font-size: 0.85rem;
+        border-radius: 25px;
+        margin-top: 6px;
+    }
+
+    /* Feature cards: single column */
+    .features {
+        grid-template-columns: 1fr;
+        gap: 10px;
+        margin-top: 4px;
+    }
+
+    .feature-card {
+        padding: 16px 14px;
+    }
+
+    /* ── Footer / verse ── */
+    footer {
+        flex-shrink: 0;
+        padding: 6px 10px;
+        font-size: 0.72rem;
+        gap: 4px;
+        flex-wrap: wrap;
+        width: 100%;
+        box-sizing: border-box;
+        position: relative;
+        z-index: 200;
+    }
+
+    .verse {
+        padding: 6px 10px;
+        font-size: 0.68rem;
+        width: 100%;
+        box-sizing: border-box;
+        text-align: center;
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       ODE SOLVER — MOBILE LAYOUT  (≤ 600 px)
+       • Fixed bottom bar = input row on top, toolkit panel below
+       • Solution panel slides UP covering full screen (z 1200)
+       • Two-page toolkit: Page 1 = nums+ops  Page 2 = symbols
+    ════════════════════════════════════════════════════════════ */
+
+    /* ── Scrollable content area ── */
+    .solver-main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 0;
+        margin: 0;
+        width: 100%;
+        box-sizing: border-box;
+        padding-bottom: 70px;
+        /* room for fixed input bar */
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .solver-title {
+        font-size: 0.9rem;
+        margin: 10px 0 6px;
+        padding: 0 12px;
+        text-align: center;
+        letter-spacing: 0.04em;
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       FIXED BOTTOM BAR
+       Input row (always visible) on top.
+       Toolkit panel expands BELOW the input row.
+    ══════════════════════════════════════════════════════════ */
+    .mobile-bottom-bar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 1300 !important;
+        display: flex;
+        flex-direction: column;
+        /* input row first (top), toolkit second (below) */
+        background: #fff;
+        border-top: 1.5px solid #d0ede9;
+        box-shadow: 0 -3px 14px rgba(0, 169, 148, 0.10);
+        width: 100%;
+        max-height: 82vh;
+        overflow: hidden;
+        box-sizing: border-box;
+    }
+
+    /* ── Input row ── */
+    .ode-input-row {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 10px;
+        background: #fff;
+        flex-shrink: 0;
+        width: 100%;
+        box-sizing: border-box;
+        border-bottom: 1px solid #eef7f6;
+    }
+
+    /* Container must be positioned so the absolute textareas stack correctly */
+    .ode-input-container {
+        flex: 1;
+        min-width: 0;
+        position: relative;
+        height: auto !important;
+        box-sizing: border-box;
+    }
+
+    /* Both textareas are positioned relatively so they flow and push the container height.
+       Only one is display:block at a time, the other is display:none. */
+    #ode,
+    #math {
+        position: relative !important;
+        width: 100% !important;
+        min-height: 44px !important;
+        max-height: 150px !important;
+        font-size: 0.95rem !important;
+        border-radius: 22px !important;
+        padding: 10px 14px !important;
+        border: 2px solid #ccc !important;
+        box-shadow: none !important;
+        resize: none !important;
+        background: #f8fffe !important;
+        box-sizing: border-box !important;
+        transition: border-color 0.15s ease !important;
+        -webkit-tap-highlight-color: transparent !important;
+        outline: none !important;
+        line-height: 1.3 !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+    }
+
+    /* Kill hover glow on mobile touch to avoid stuck states, let focus take precedence */
+    #ode:hover,
+    #math:hover {
+        border-color: #ccc;
+        box-shadow: none;
+    }
+
+    #ode:focus,
+    #math:focus {
+        border-color: #00a994 !important;
+        background: #fff !important;
+        box-shadow: 0 0 0 2px rgba(0, 169, 148, 0.14) !important;
+    }
+
+    /* Math overlay rides on top of #math, also absolutely positioned */
+    .ode-math-overlay {
+        position: absolute !important;
+        top: 2px !important;
+        left: 2px !important;
+        width: calc(100% - 4px) !important;
+        height: calc(100% - 4px) !important;
+        border-radius: 20px !important;
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        box-sizing: border-box !important;
+        pointer-events: none !important;
+        z-index: 5 !important;
+        padding: 10px 14px !important;
+    }
+
+    /* ── Side button group ── */
+    .ode-btn-group {
+        flex-direction: column;
+        gap: 4px;
+        flex-shrink: 0;
+    }
+
+    .ode-btn-row {
+        display: flex;
+        flex-direction: row;
+        gap: 4px;
+    }
+
+    .solve-btn,
+    .clear-btn,
+    .tools-btn,
+    .info-btn {
+        width: 36px !important;
+        height: 36px !important;
+        padding: 0 !important;
+        border-radius: 50% !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 0.88rem !important;
+        flex-shrink: 0;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       TOOLKIT PANEL  (below input row, flex-direction: column)
+    ══════════════════════════════════════════════════════════ */
+    .tool-kit {
+        display: none;
+        /* JS sets display:flex when open */
+        flex-direction: column !important;
+        flex-wrap: nowrap !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        padding: 5px 8px 6px !important;
+        margin: 0 !important;
+        gap: 5px !important;
+        border-radius: 0 !important;
+        border: none !important;
+        background: #fafffe !important;
+        overflow-y: auto;
+        max-height: 64vh;
+        flex-shrink: 1;
+    }
+
+    /* ── Mode buttons row: compact horizontal pills ── */
+    .mode-toggle-row {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        gap: 4px !important;
+        align-items: center !important;
+        overflow-x: auto !important;
+        scrollbar-width: none !important;
+        -webkit-overflow-scrolling: touch !important;
+        padding-bottom: 2px !important;
+        width: 100% !important;
+        flex-shrink: 0 !important;
+        border-bottom: 1px solid #e8f5f3;
+        margin-bottom: 2px !important;
+    }
+
+    .mode-toggle-row::-webkit-scrollbar {
+        display: none;
+    }
+
+    /* ALL mode buttons: compact pills, auto-width, NEVER full-width */
+    .tool-kit button.mode-btn {
+        flex: 0 0 auto !important;
+        width: auto !important;
+        min-width: 30px !important;
+        max-width: none !important;
+        height: 26px !important;
+        font-size: 0.56rem !important;
+        padding: 0 6px !important;
+        border-radius: 9px !important;
+        line-height: 1 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+        box-shadow: none !important;
+    }
+
+    /* ── Generic toolkit buttons (fill grid cells) ── */
+    .tool-kit button {
+        box-sizing: border-box;
+        height: 34px !important;
+        font-size: 0.68rem !important;
+        padding: 2px !important;
+        border-radius: 6px !important;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+    }
+
+    .tool-kit button.op-btn,
+    .tool-kit button.num-btn,
+    .tool-kit button.fun-btn {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        flex: 1 !important;
+    }
+
+    /* ── Functions panel (fx) ── */
+    .functions-panel {
+        grid-template-columns: repeat(4, 1fr) !important;
+        gap: 4px !important;
+        width: 100% !important;
+        margin: 2px 0 !important;
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       MORE-PANEL
+
+       PAGE 1 (default): nums grid left + ops grid right, side-by-side
+       PAGE 2 (.mobile-sym-page): symbol subpanels tabbed layout
+    ══════════════════════════════════════════════════════════ */
+    #more-panel {
+        flex-direction: column !important;
+        gap: 5px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: visible !important;
+        background: transparent !important;
+        border: none !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+    }
+
+    /* ── Symbol tabs toggle row inside more-panel ── */
+    .symbol-toggle-row {
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        margin-bottom: 4px;
+    }
+
+    /* ── Page 1: NUMBERS grid (3 cols × 4 rows = 12 buttons) ── */
+    #more-panel .more-panel-content>.mobile-nums-grid {
+        flex: 0 0 41% !important;
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 4px !important;
+        min-width: 0 !important;
+        width: auto !important;
+    }
+
+    /* ── Page 1: OPERATORS grid (4 cols × 4 rows = 16 buttons) ── */
+    #more-panel .more-panel-content>.mobile-ops-grid {
+        flex: 0 0 57% !important;
+        display: grid !important;
+        grid-template-columns: repeat(4, 1fr) !important;
+        gap: 4px !important;
+        min-width: 0 !important;
+        width: auto !important;
+    }
+
+    /* ── Page 1 Layout for content ── */
+    #more-panel:not(.mobile-sym-page) .more-panel-content {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        gap: 5px !important;
+        width: 100% !important;
+    }
+
+    #more-panel:not(.mobile-sym-page) .symbol-toggle-row {
+        display: none !important;
+    }
+
+    #more-panel:not(.mobile-sym-page) .symbol-subpanel {
+        display: none !important;
+    }
+
+    /* ── Page 2 Layout ── */
+    #more-panel.mobile-sym-page .symbol-toggle-row {
+        display: flex !important;
+        width: 100% !important;
+    }
+
+    #more-panel.mobile-sym-page .more-panel-content {
+        display: block !important;
+        width: 100% !important;
+    }
+
+    #more-panel.mobile-sym-page .more-panel-content>.mobile-nums-grid,
+    #more-panel.mobile-sym-page .more-panel-content>.mobile-ops-grid {
+        display: none !important;
+    }
+
+    /* Active subpanel styling */
+    #more-panel.mobile-sym-page .symbol-subpanel {
+        flex-wrap: wrap !important;
+        gap: 4px !important;
+        width: 100% !important;
+        padding: 4px !important;
+        margin: 0 !important;
+        box-sizing: border-box !important;
+        background: #f3fbf9;
+        border-radius: 8px;
+    }
+
+    /* Symbol subpanel buttons wrap nicely */
+    #more-panel.mobile-sym-page .symbol-subpanel button.subpanel-btn {
+        flex: 1 1 54px !important;
+        width: auto !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        height: 30px !important;
+        font-size: 0.58rem !important;
+        padding: 2px 4px !important;
+        border-radius: 6px !important;
+    }
+
+    /* Fallbacks */
+    #more-panel:not(.mobile-sym-page) .more-panel-content>.nums-grid {
+        flex: 0 0 41% !important;
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 4px !important;
+        min-width: 0 !important;
+    }
+
+    #more-panel:not(.mobile-sym-page) .more-panel-content>.ops-grid {
+        flex: 0 0 57% !important;
+        display: grid !important;
+        grid-template-columns: repeat(4, 1fr) !important;
+        gap: 4px !important;
+        min-width: 0 !important;
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       PANEL TABS (Solution / Plot / Saved)  in solver-main
+     ══════════════════════════════════════════════════════════ */
+    .panel-tab-row {
+        position: fixed !important;
+        top: 82px !important;
+        /* matches top-bar height */
+        left: 0 !important;
+        right: 0 !important;
+        z-index: 1250 !important;
+        /* above output-panel */
+        background: #fff !important;
+        margin: 0 !important;
+        padding: 6px 10px !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+        display: none;
+        /* dynamically toggled by JS inline display */
+        justify-content: center !important;
+        height: 44px !important;
+        box-sizing: border-box !important;
+        flex-direction: row !important;
+        gap: 5px !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        scrollbar-width: none !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+
+    .panel-tab-row::-webkit-scrollbar {
+        display: none;
+    }
+
+    .panel-tab-btn {
+        font-size: 0.62rem !important;
+        padding: 5px 12px !important;
+        min-width: 52px !important;
+        flex-shrink: 0 !important;
+        border-radius: 14px !important;
+        white-space: nowrap !important;
+        width: auto !important;
+        letter-spacing: 0.04em !important;
+    }
+
+    .output-row {
+        flex-direction: column !important;
+        padding: 0 10px 10px !important;
+        gap: 10px !important;
+        overflow-y: auto !important;
+    }
+
+    .panel-resizer {
+        display: none !important;
+    }
+
+    #solution,
+    #plots,
+    #savedSolutionsList {
+        padding: 10px 14px !important;
+        font-size: 0.88rem !important;
+        padding-bottom: 80px !important;
+        /* spacing for floating bottom bar */
+    }
+
+    .info-section {
+        max-width: 100% !important;
+        margin: 8px 10px !important;
+        padding: 14px !important;
+        border-radius: 10px !important;
+    }
+
+    .info-title {
+        font-size: 0.9rem !important;
+    }
+
+    .info-body p {
+        font-size: 0.78rem !important;
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       OUTPUT PANEL — slides UP from bottom, covers full screen
+       z-index 1200 beats the sticky header (z 1000)
+     ══════════════════════════════════════════════════════════ */
+    .output-panel {
+        position: fixed !important;
+        top: 126px !important;
+        /* 82px top-bar + 44px tab-row */
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        /* stops above the input bar */
+        z-index: 1200 !important;
+        display: none !important;
+        /* .mobile-visible overrides */
+        flex-direction: column !important;
+        background: #fff !important;
+        box-sizing: border-box !important;
+        overflow-y: auto !important;
+        transform: translateY(100%) !important;
+        /* starts off-screen below */
+        transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1) !important;
+        border-radius: 0 !important;
+        box-shadow: 0 -4px 28px rgba(0, 0, 0, 0.14) !important;
+    }
+
+    .output-panel.mobile-visible {
+        display: flex !important;
+        transform: translateY(0) !important;
+    }
+
+    /* Sticky panel title bar */
+    .output-panel-title {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 2 !important;
+        background: #fff !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        padding: 10px 14px 8px !important;
+        border-bottom: 1px solid #e8e8e8 !important;
+        font-size: 0.78rem !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.04em !important;
+        flex-shrink: 0 !important;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06) !important;
+    }
+
+    .panel-close-btn {
+        display: inline-flex !important;
+        background: none !important;
+        border: none !important;
+        color: #666 !important;
+        font-size: 1.15rem !important;
+        cursor: pointer !important;
+        padding: 5px !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-radius: 50% !important;
+        -webkit-tap-highlight-color: transparent !important;
+    }
+
+    /* Backdrop scrim */
+    #mobile-saved-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 30, 25, 0.32);
+        z-index: 1199;
+        backdrop-filter: blur(2px);
+        -webkit-backdrop-filter: blur(2px);
+    }
+
+    #mobile-saved-backdrop.visible {
+        display: block;
+        animation: hpFadeIn 0.2s ease;
+    }
 }
