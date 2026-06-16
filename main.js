@@ -172,7 +172,7 @@ function insertImplicitStars(str) {
         .replace(/(\))\s*(\()/g, '$1*$2')
         // Insert star between a closing paren and a variable/number (e.g. )y -> )*y
         .replace(/(\))\s*([a-zA-Z\d])/g, '$1*$2')
-        .replace(/\b(?!sin|cos|tan|cot|sec|csc|cosec|asin|acos|atan|acot|asec|acsc|acosec|log|ln|exp|sinh|cosh|tanh|sqrt|integrate|diff|pdiff|limit|sum|product|defint|nrt|abs|fact|squareroot|secondroot|secndroot|thirdroot|cuberoot|fourthroot|forthroot|fifthroot|sixthroot|seventhroot|eighthroot|ninthroot|tenthroot|multiply|matrix|vector|eigenvalues|eigenvectors|rref|basis|trace|transpose|det|inverse|invert|identity|null|conjugate|arg|realpart|imagpart|polarform|rectform|dot|cross|mag|normalize|angle|eq|lt|gt|lte|gte|laplace|ilaplace|ilt|mean|mode|median|zscore|smpvar|variance|smpstdev|stdev|factor|partfrac|lcm|gcd|roots|coeffs|deg|sqcomp|log10|min|max|floor|ceil|simplify|Si|Ci|Ei|rect|step|sinc|Shi|Chi|factorial|dfactorial|mod|erf|sign|round|pfactor|expand|fib|tri|parens|line|continued_fraction)([a-zA-Z]+)(\()/g, '$1*$2')
+        .replace(/\b(?!besselj|bessely|sin|cos|tan|cot|sec|csc|cosec|asin|acos|atan|acot|asec|acsc|acosec|log|ln|exp|sinh|cosh|tanh|sqrt|integrate|diff|pdiff|limit|sum|product|defint|nrt|abs|fact|squareroot|secondroot|secndroot|thirdroot|cuberoot|fourthroot|forthroot|fifthroot|sixthroot|seventhroot|eighthroot|ninthroot|tenthroot|multiply|matrix|vector|eigenvalues|eigenvectors|rref|basis|trace|transpose|det|inverse|invert|identity|null|conjugate|arg|realpart|imagpart|polarform|rectform|dot|cross|mag|normalize|angle|eq|lt|gt|lte|gte|laplace|ilaplace|ilt|mean|mode|median|zscore|smpvar|variance|smpstdev|stdev|factor|partfrac|lcm|gcd|roots|coeffs|deg|sqcomp|log10|min|max|floor|ceil|simplify|Si|Ci|Ei|rect|step|sinc|Shi|Chi|factorial|dfactorial|mod|erf|sign|round|pfactor|expand|fib|tri|parens|line|continued_fraction)([a-zA-Z]+)(\()/g, '$1*$2')
         // Insert star between standalone variables x/y and subsequent variables/functions (e.g. xe^y -> x*e^y, xy -> x*y)
         .replace(/\b([xy])([a-zA-Z])/gi, (match, p1, p2) => p1 + '*' + p2);
 }
@@ -250,6 +250,64 @@ if (typeof nerdamer !== 'undefined' && typeof nerdamer.getCore === 'function') {
         core.PARSER.functions.laplace[0] = customLaplace;
     }
 }
+function replaceBesselWithPlaceholders(str) {
+    let placeholders = [];
+    let counter = 0;
+
+    // We search for besselj or bessely followed by matching parenthesis
+    let regex = /\b(besselj|bessely)\(/g;
+    let match;
+    while ((match = regex.exec(str)) !== null) {
+        let startIndex = match.index;
+        let type = match[1];
+        let bracketCount = 1;
+        let j = startIndex + type.length + 1;
+        while (j < str.length && bracketCount > 0) {
+            if (str[j] === '(') bracketCount++;
+            else if (str[j] === ')') bracketCount--;
+            j++;
+        }
+        if (bracketCount === 0) {
+            let fullMatch = str.slice(startIndex, j);
+            let inside = str.slice(startIndex + type.length + 1, j - 1);
+
+            // Split inside by the first comma at depth 0
+            let commaIndex = -1;
+            let depth = 0;
+            for (let k = 0; k < inside.length; k++) {
+                if (inside[k] === '(') depth++;
+                else if (inside[k] === ')') depth--;
+                else if (inside[k] === ',' && depth === 0) {
+                    commaIndex = k;
+                    break;
+                }
+            }
+            if (commaIndex !== -1) {
+                let v = inside.slice(0, commaIndex).trim();
+                let arg = inside.slice(commaIndex + 1).trim();
+                let placeholder = `BESSEL${type === 'besselj' ? 'J' : 'Y'}PR${counter++}`;
+
+                let v_latex = v;
+                if (v.includes('/')) {
+                    let parts = v.split('/');
+                    v_latex = `\\frac{${parts[0].trim()}}{${parts[1].trim()}}`;
+                }
+
+                let latex = `${type === 'besselj' ? 'J' : 'Y'}_{${v_latex}}\\left(${arg}\\right)`;
+                placeholders.push({
+                    placeholder: placeholder,
+                    latex: latex
+                });
+
+                str = str.replace(fullMatch, placeholder);
+                // Reset regex index since we modified the string
+                regex.lastIndex = 0;
+            }
+        }
+    }
+    return { processed: str, placeholders };
+}
+
 if (typeof nerdamer !== 'undefined' && typeof nerdamer.convertToLaTeX === 'function') {
     const originalConvertToLaTeX = nerdamer.convertToLaTeX;
     nerdamer.convertToLaTeX = function (expression, option) {
@@ -262,22 +320,33 @@ if (typeof nerdamer !== 'undefined' && typeof nerdamer.convertToLaTeX === 'funct
         // Clean expression by injecting implicit stars
         let cleanedExpression = insertImplicitStars(expression);
 
+        // Replace Bessel functions with placeholders to bypass Nerdamer parser limitations
+        let besselResult = replaceBesselWithPlaceholders(cleanedExpression);
+        cleanedExpression = besselResult.processed;
+
         try {
+            let latex = "";
             try {
                 let parsed = nerdamer(cleanedExpression);
                 let isDecimal = /\d+\.\d+/.test(cleanedExpression);
-                let latex = isDecimal ? parsed.toTeX('decimal') : parsed.toTeX();
-                if (latex && typeof latex === 'string' && latex.trim()) {
-                    return latex;
-                }
+                latex = isDecimal ? parsed.toTeX('decimal') : parsed.toTeX();
             } catch (err) {
                 // Fallback to default LaTeX converter if parsing or toTeX fails
             }
-            let opt = option;
-            if (/\d+\.\d+/.test(cleanedExpression)) {
-                opt = 'decimal';
+
+            if (!latex || typeof latex !== 'string' || !latex.trim()) {
+                let opt = option;
+                if (/\d+\.\d+/.test(cleanedExpression)) {
+                    opt = 'decimal';
+                }
+                latex = originalConvertToLaTeX.call(nerdamer, cleanedExpression, opt);
             }
-            return originalConvertToLaTeX.call(nerdamer, cleanedExpression, opt);
+
+            // Restore Bessel functions in the LaTeX output
+            for (let ph of besselResult.placeholders) {
+                latex = latex.replaceAll(ph.placeholder, ph.latex);
+            }
+            return latex;
         } finally {
             if (typeof nerdamer !== 'undefined' && typeof nerdamer.setVar === 'function') {
                 for (let v in varsBackup) {
@@ -2544,6 +2613,10 @@ function preprocessLaplace(latex) {
 function translateLatexToNerdamer(latex) {
     if (!latex) return "";
 
+    // Clean empty/placeholder subscripts/superscripts (e.g. _{}, _{_}, _, ^{}, ^{_}, ^)
+    latex = latex.replace(/([_^])\s*\{\s*(_)?\s*\}/g, '');
+    latex = latex.replace(/([_^])(?![a-zA-Z0-9{])/g, '');
+
     latex = preprocessLaplace(latex);
 
     // Convert ^{\circ} or ^\circ to *pi/180 for evaluation
@@ -2636,6 +2709,8 @@ function translateLatexToNerdamer(latex) {
     // Remove \left( and \right) to prevent "left" and "right" function call conflicts
     latex = latex.replace(/\\left\(/g, '(').replace(/\\right\)/g, ')');
 
+    latex = convertUnitVectorsToVector(latex);
+
     // Preprocess dot products: A \cdot B -> \text{dot}(A, B)
     const dotRegex = /((?:\(?\s*(?:\\vec\{[^{}]+\}|vector\([^)]+\)|\\begin\{(?:bmatrix|matrix|vmatrix)\}[\s\S]*?\\end\{(?:bmatrix|matrix|vmatrix)\}|[a-zA-Z0-9]+)\s*\)?\s*))\s*\\cdot\s*((?:\(?\s*(?:\\vec\{[^{}]+\}|vector\([^)]+\)|\\begin\{(?:bmatrix|matrix|vmatrix)\}[\s\S]*?\\end\{(?:bmatrix|matrix|vmatrix)\}|[a-zA-Z0-9]+)\s*\)?\s*))/g;
     latex = latex.replace(dotRegex, (match, op1, op2) => {
@@ -2657,7 +2732,6 @@ function translateLatexToNerdamer(latex) {
     });
 
     latex = stripVecArrows(latex);
-    latex = convertUnitVectorsToVector(latex);
 
     // Strip \vec arrow so variables/values are computed normally
     latex = latex.replace(/\\vec\{([^{}]+)\}/g, '$1');
@@ -14093,6 +14167,30 @@ function formatNerdamerMatrixToBMatrix(M) {
 // ── Global registration in Nerdamer ──
 if (typeof nerdamer !== 'undefined' && typeof nerdamer.getCore === 'function') {
     const core = nerdamer.getCore();
+
+    core.PARSER.functions.mag = [function (x) {
+        return core.PARSER.functions.abs[0](x);
+    }, 1];
+
+    core.PARSER.functions.normalize = [function (x) {
+        if (x instanceof core.Vector || x instanceof core.Matrix) {
+            let magnitude = core.PARSER.functions.abs[0](x);
+            if (magnitude.toString() === '0') {
+                return x;
+            }
+            return core.PARSER.divide(x, magnitude);
+        }
+        return nerdamer('1').symbol;
+    }, 1];
+
+    core.PARSER.functions.angle = [function (A, B) {
+        let dotProd = core.PARSER.functions.dot[0](A, B);
+        let absA = core.PARSER.functions.abs[0](A);
+        let absB = core.PARSER.functions.abs[0](B);
+        let denom = core.PARSER.multiply(absA, absB);
+        let cosTheta = core.PARSER.divide(dotProd, denom);
+        return core.PARSER.functions.acos[0](cosTheta);
+    }, 2];
 
     core.PARSER.functions.trace = [function (M) {
         if (!(M instanceof core.Matrix)) {
