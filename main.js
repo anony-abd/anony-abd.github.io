@@ -947,6 +947,108 @@ function resizeTextarea(el) {
         }
     }
 }
+function stripLatexFunctionWrappers(str) {
+    if (!str || typeof str !== 'string') return str;
+
+    const functionsToStrip = [
+        "integrate", "ilaplace", "laplace", "ilt", "product", "defint", "limit", "sum",
+        "transpose", "invert", "inverse", "determinant", "det", "multiply",
+        "eigenvalues", "eigenvectors", "rref", "basis", "trace",
+        "simplify", "expand", "factor", "gcd", "lcm", "eq", "lt", "gt", "lte", "gte",
+        "mean", "mode", "median", "zscore", "smpvar", "variance", "smpstdev", "stdev",
+        "partfrac", "roots", "coeffs", "deg", "sqcomp", "log10", "min", "max",
+        "floor", "ceil", "Si", "Ci", "Ei", "rect", "step", "sinc", "Shi", "Chi",
+        "factorial", "dfactorial", "mod", "erf", "sign", "round", "pfactor",
+        "fib", "tri", "parens", "line", "continued_fraction"
+    ];
+
+    let changed = true;
+    while (changed) {
+        changed = false;
+
+        // Match text mode functions \text{funcName} or LaTeX commands \funcName
+        let textRegex = /\\text\{([a-zA-Z0-9_]+)\}\s*(?:\\left)?\s*([({])|\\([a-zA-Z]+)\s*(?:\\left)?\s*([({])/g;
+        let match;
+        while ((match = textRegex.exec(str)) !== null) {
+            let funcName = match[1] || match[3];
+            let openChar = match[2] || match[4];
+
+            if (funcName && functionsToStrip.includes(funcName.toLowerCase())) {
+                let startIndex = match.index;
+                let openPos = startIndex + match[0].length - 1; // position of openChar
+                let closeChar = openChar === '(' ? ')' : '}';
+                let isLeftRight = match[0].includes('\\left');
+
+                // Find matching closing char
+                let depth = 1;
+                let j = openPos + 1;
+                while (j < str.length && depth > 0) {
+                    if (str[j] === openChar) depth++;
+                    else if (str[j] === closeChar) {
+                        if (isLeftRight && str.substring(0, j).endsWith('\\right')) {
+                            depth--;
+                            if (depth === 0) {
+                                j -= 6; // exclude \right
+                                break;
+                            }
+                        } else if (!isLeftRight) {
+                            depth--;
+                            if (depth === 0) break;
+                        }
+                    }
+                    j++;
+                }
+
+                if (depth === 0) {
+                    let inner = str.substring(openPos + 1, j).trim();
+                    let endOfMatch = j + (isLeftRight ? 7 : 1); // skip closeChar and optional \right
+                    str = str.substring(0, startIndex) + inner + str.substring(endOfMatch);
+                    changed = true;
+                    break; // break inner loop, restart with modified string
+                }
+            }
+        }
+        if (changed) continue;
+
+        // Match raw funcName(...) or funcName{...}
+        let rawRegex = new RegExp('\\b(' + functionsToStrip.join('|') + ')\\s*(?:\\\\left)?\\s*([({])', 'ig');
+        while ((match = rawRegex.exec(str)) !== null) {
+            let funcName = match[1];
+            let openChar = match[2];
+            let startIndex = match.index;
+            let openPos = startIndex + match[0].length - 1;
+            let closeChar = openChar === '(' ? ')' : '}';
+            let isLeftRight = match[0].includes('\\left');
+
+            let depth = 1;
+            let j = openPos + 1;
+            while (j < str.length && depth > 0) {
+                if (str[j] === openChar) depth++;
+                else if (str[j] === closeChar) {
+                    if (isLeftRight && str.substring(0, j).endsWith('\\right')) {
+                        depth--;
+                        if (depth === 0) {
+                            j -= 6;
+                            break;
+                        }
+                    } else if (!isLeftRight) {
+                        depth--;
+                        if (depth === 0) break;
+                    }
+                }
+                j++;
+            }
+            if (depth === 0) {
+                let inner = str.substring(openPos + 1, j).trim();
+                let endOfMatch = j + (isLeftRight ? 7 : 1);
+                str = str.substring(0, startIndex) + inner + str.substring(endOfMatch);
+                changed = true;
+                break;
+            }
+        }
+    }
+    return str;
+}
 
 function renderKatex(expr, el, options = {}) {
     if (typeof katex === 'undefined') return;
@@ -961,7 +1063,35 @@ function renderKatex(expr, el, options = {}) {
         trust: true
     }, options);
     mergedOptions.macros = Object.assign({}, defaultMacros, options.macros || {});
-    katex.render(expr, el, mergedOptions);
+
+    // Save original throwOnError option
+    const originalThrowOnError = mergedOptions.throwOnError;
+    mergedOptions.throwOnError = true;
+
+    try {
+        katex.render(expr, el, mergedOptions);
+    } catch (err) {
+        let cleanedExpr = stripLatexFunctionWrappers(expr);
+        if (cleanedExpr !== expr) {
+            try {
+                katex.render(cleanedExpr, el, mergedOptions);
+                return;
+            } catch (err2) {
+                expr = cleanedExpr;
+            }
+        }
+
+        mergedOptions.throwOnError = originalThrowOnError;
+        try {
+            katex.render(expr, el, mergedOptions);
+        } catch (finalErr) {
+            if (originalThrowOnError) {
+                throw finalErr;
+            } else {
+                el.textContent = expr;
+            }
+        }
+    }
 }
 
 if (boxInput) {
@@ -9206,7 +9336,167 @@ function preprocessMatrixOperators(str) {
     return str;
 }
 
+function preprocessTrigArgsWithoutParentheses(str) {
+    if (!str || typeof str !== 'string') return str;
+    const trigList = [
+        'sinh', 'cosh', 'tanh', 'sech', 'csch', 'coth',
+        'asinh', 'acosh', 'atanh', 'asech', 'acsch', 'acoth',
+        'asin', 'acos', 'atan', 'acot', 'asec', 'acsc', 'acot',
+        'sin', 'cos', 'tan', 'sec', 'csc', 'cosec', 'cot',
+        'cosech', 'acosec', 'acosech'
+    ];
+    const sortedTrigList = [...trigList].sort((a, b) => b.length - a.length);
+    const lookaheadCorrect = '(?=[0-9]|\\b|\\s|\\(|\\{|\\)|\\}|\\\\[a-zA-Z]+|[a-zA-Z]\\b|theta\\b|phi\\b|pi\\b|alpha\\b|beta\\b|gamma\\b)';
+    const trigRegex = new RegExp('\\b(' + sortedTrigList.join('|') + ')' + lookaheadCorrect, 'gi');
+    let res = '';
+    let lastIdx = 0;
+    let match;
+    while ((match = trigRegex.exec(str)) !== null) {
+        let fn = match[1];
+        let matchIdx = match.index;
+        res += str.substring(lastIdx, matchIdx);
+        let afterFnIdx = matchIdx + fn.length;
+        let powerStr = '';
+        if (str[afterFnIdx] === '^') {
+            let powerMatch = str.substring(afterFnIdx).match(/^\^(?:[a-zA-Z0-9]+|\{[a-zA-Z0-9]+\})/);
+            if (powerMatch) {
+                powerStr = powerMatch[0];
+                afterFnIdx += powerStr.length;
+            }
+        }
+        let remaining = str.substring(afterFnIdx);
+        let argInfo = extractTrigArg(remaining);
+        if (argInfo) {
+            res += fn + powerStr + '(' + argInfo.text + ')';
+            lastIdx = afterFnIdx + argInfo.length;
+            trigRegex.lastIndex = lastIdx;
+        } else {
+            res += fn + powerStr;
+            lastIdx = afterFnIdx;
+            trigRegex.lastIndex = lastIdx;
+        }
+    }
+    res += str.substring(lastIdx);
+    return res;
+
+    function extractTrigArg(s) {
+        let spaces = s.match(/^\s*/)[0];
+        let rem = s.slice(spaces.length);
+        if (!rem) return null;
+        if (rem[0] === '(') return null;
+        let match = rem.match(/^(?:\d+(?:\.\d+)?\s*\*?\s*)?(?:[a-zA-Z]+|\\[a-zA-Z]+)(?:\s*\^\s*(?:\d+|[a-zA-Z]+|\{[a-zA-Z0-9]+\}))?(?:\s*[\/\*]\s*(?:\d+|[a-zA-Z]+|\\[a-zA-Z]+))?/);
+        if (!match) {
+            let numMatch = rem.match(/^\d+(?:\.\d+)?/);
+            if (numMatch) {
+                return { text: numMatch[0], length: spaces.length + numMatch[0].length };
+            }
+            return null;
+        }
+        let argText = match[0];
+        let words = argText.split(/[^a-zA-Z]+/);
+        for (let w of words) {
+            if (trigList.includes(w.toLowerCase())) {
+                let idx = argText.indexOf(w);
+                if (idx !== -1) {
+                    let truncated = argText.substring(0, idx).trim();
+                    truncated = truncated.replace(/[\*\/\^\s]+$/, '');
+                    if (truncated) {
+                        return { text: truncated, length: spaces.length + truncated.length };
+                    } else {
+                        return null;
+                    }
+                }
+            }
+        }
+        return { text: argText, length: spaces.length + argText.length };
+    }
+}
+
+function solveTrigEquationGeneral(eq, varName = 'x') {
+    let solutions = [];
+    try {
+        let sol = nerdamer("solve(" + eq + ", " + varName + ")");
+        if (sol.symbol && sol.symbol.elements) {
+            solutions = sol.symbol.elements.map(el => parseFloat(nerdamer(el).evaluate().text()));
+        } else {
+            let str = sol.toString();
+            let arr = str[0] === '[' ? str.slice(1, -1).split(',') : [str];
+            solutions = arr.map(s => parseFloat(nerdamer(s.trim()).evaluate().text()));
+        }
+    } catch (e) {
+        return null;
+    }
+
+    solutions = solutions.filter(v => !isNaN(v) && isFinite(v));
+
+    let principalSols = [];
+    const TWO_PI = 2 * Math.PI;
+
+    for (let val of solutions) {
+        let wrapped = val % TWO_PI;
+        if (wrapped < 0) wrapped += TWO_PI;
+        if (Math.abs(wrapped - TWO_PI) < 1e-4 || Math.abs(wrapped) < 1e-4) {
+            wrapped = 0;
+        }
+
+        let exists = false;
+        for (let p of principalSols) {
+            if (Math.abs(p - wrapped) < 1e-4) {
+                exists = true;
+                break;
+            }
+        }
+        if (!exists) {
+            principalSols.push(wrapped);
+        }
+    }
+
+    principalSols.sort((a, b) => a - b);
+
+    let formattedSols = principalSols.map(v => {
+        let r = v / Math.PI;
+        if (Math.abs(r) < 1e-5) return "0";
+        for (let q = 1; q <= 12; q++) {
+            let p = Math.round(r * q);
+            if (Math.abs(r * q - p) < 1e-3) {
+                if (p === 1 && q === 1) return "pi";
+                if (p === 1) return `pi/${q}`;
+                if (q === 1) return `${p}*pi`;
+                return `${p}*pi/${q}`;
+            }
+        }
+        return `${r.toFixed(4)}*pi`;
+    });
+
+    let generalSols = formattedSols.map(f => {
+        if (f === "0") {
+            return `2*k*pi`;
+        }
+        return `2*k*pi + ${f}`;
+    });
+
+    return generalSols;
+}
+
+function formatGeneralSolutionLaTeX(s) {
+    s = s.replace(/2\*k\*pi/g, '2k\\pi')
+        .replace(/k\*pi/g, 'k\\pi')
+        .replace(/\bpi\b/g, '\\pi');
+
+    s = s.replace(/(\d+)\*\\pi\/(\d+)/g, '\\frac{$1\\pi}{$2}')
+        .replace(/\\pi\/(\d+)/g, '\\frac{\\pi}{$1}')
+        .replace(/(\d+)\*\\pi/g, '$1\\pi');
+
+    s = s.replace(/\*/g, ' ');
+    return s;
+}
+
 function mathSolver(user_input, rawDisplayInput = "") {
+    user_input = preprocessTrigArgsWithoutParentheses(user_input);
+    if (rawDisplayInput) {
+        rawDisplayInput = preprocessTrigArgsWithoutParentheses(rawDisplayInput);
+    }
+
     if (typeof window !== 'undefined') {
         window.mathSolverLastSolution = "";
     }
@@ -9353,53 +9643,75 @@ function mathSolver(user_input, rawDisplayInput = "") {
             // Standardize equation to LHS - (RHS) = 0
             let eq = `(${lhs}) - (${rhs})`;
 
-            // Solve equation
-            let solutions;
-            try {
-                solutions = nerdamer("roots(" + eq + ")");
-            } catch (e) {
-                solutions = nerdamer("solve(" + eq + ", x)");
-            }
-
             // Render original equation
             const pEq = document.createElement('p');
             renderKatex(`\\text{Equation: } ${displayLaTeX}`, pEq, { throwOnError: false });
             solId.appendChild(pEq);
 
-            // Render solutions
-            const pSol = document.createElement('p');
-            let solList = [];
-            if (solutions.symbol && solutions.symbol.elements) {
-                solList = solutions.symbol.elements;
-            } else if (solutions) {
-                solList = Array.isArray(solutions) ? solutions : [solutions];
+            // Determine solved variable
+            let vars = nerdamer(eq).variables();
+            let varName = vars.includes('x') ? 'x' : (vars.includes('y') ? 'y' : (vars[0] || 'x'));
+
+            let isTrig = /\b(sin|cos|tan|sec|csc|cot)\b/i.test(eq);
+            let trigSols = null;
+            if (isTrig) {
+                trigSols = solveTrigEquationGeneral(eq, varName);
             }
 
-            let hasApprox = false;
-            let formattedSols = solList.map(el => {
-                let str = el.toString();
-                let latex = simplifyFractionsInText(katexFormat(simplifyFractionsInText(str)));
-                let dec = getDecimalValue(str);
-                if (dec && dec !== str && isMessySolution(str)) {
-                    hasApprox = true;
-                    return formatDecimalStringToLaTeX(dec);
+            if (trigSols && trigSols.length > 0) {
+                const pSol = document.createElement('p');
+                let formattedSols = trigSols.map(formatGeneralSolutionLaTeX);
+                let solLaTeX = formattedSols.join(',\\quad ') + ',\\quad k \\in \\mathbb{Z}';
+                renderKatex(`${varName} = ${solLaTeX}`, pSol, { throwOnError: false });
+                solId.appendChild(pSol);
+                if (typeof window !== 'undefined') {
+                    window.mathSolverLastSolution = `${varName} = ${solLaTeX}`;
                 }
-                return latex;
-            });
-
-            let solLaTeX = "";
-            if (solList.length === 0) {
-                solLaTeX = "[]";
+                saveSolutionToHistory(user_input, `${varName} = ${solLaTeX}`);
             } else {
-                solLaTeX = formattedSols.join(', ');
+                // Solve equation
+                let solutions;
+                try {
+                    solutions = nerdamer("roots(" + eq + ")");
+                } catch (e) {
+                    solutions = nerdamer("solve(" + eq + ", " + varName + ")");
+                }
+
+                // Render solutions
+                const pSol = document.createElement('p');
+                let solList = [];
+                if (solutions.symbol && solutions.symbol.elements) {
+                    solList = solutions.symbol.elements;
+                } else if (solutions) {
+                    solList = Array.isArray(solutions) ? solutions : [solutions];
+                }
+
+                let hasApprox = false;
+                let formattedSols = solList.map(el => {
+                    let str = el.toString();
+                    let latex = simplifyFractionsInText(katexFormat(simplifyFractionsInText(str)));
+                    let dec = getDecimalValue(str);
+                    if (dec && dec !== str && isMessySolution(str)) {
+                        hasApprox = true;
+                        return formatDecimalStringToLaTeX(dec);
+                    }
+                    return latex;
+                });
+
+                let solLaTeX = "";
+                if (solList.length === 0) {
+                    solLaTeX = "[]";
+                } else {
+                    solLaTeX = formattedSols.join(', ');
+                }
+                let relation = hasApprox ? "\\approx" : "=";
+                renderKatex(`${varName} ${relation} ${solLaTeX}`, pSol, { throwOnError: false });
+                solId.appendChild(pSol);
+                if (typeof window !== 'undefined') {
+                    window.mathSolverLastSolution = `${varName} ${relation} ${solLaTeX}`;
+                }
+                saveSolutionToHistory(user_input, `${varName} ${relation} ${solLaTeX}`);
             }
-            let relation = hasApprox ? "\\approx" : "=";
-            renderKatex(`x ${relation} ${solLaTeX}`, pSol, { throwOnError: false });
-            solId.appendChild(pSol);
-            if (typeof window !== 'undefined') {
-                window.mathSolverLastSolution = `x ${relation} ${solLaTeX}`;
-            }
-            saveSolutionToHistory(user_input, `x ${relation} ${solLaTeX}`);
         } else {
             // Check if it is a custom matrix/vector function to intercept and format beautifully
             let matrixOpMatch = processedInput.match(/^(eigenvalues|eigenvectors|rref|basis|multiply)\(([\s\S]+)\)$/i);
@@ -14454,6 +14766,8 @@ if (typeof nerdamer !== 'undefined' && typeof nerdamer.getCore === 'function') {
         return det.symbol || det;
     }, 1];
 
+    core.PARSER.functions.det = core.PARSER.functions.determinant;
+
     const originalTranspose = core.PARSER.functions.transpose[0];
     core.PARSER.functions.transpose = [function (M) {
         if (M instanceof core.Vector) {
@@ -14642,7 +14956,8 @@ if (typeof module !== 'undefined') {
         swapODEVariables,
         checkMatrixSubscripts,
         handleMathInput,
-        kaTeXDisplay
+        kaTeXDisplay,
+        stripLatexFunctionWrappers
     };
 }
 
