@@ -2399,13 +2399,13 @@ function stripVecArrows(latex) {
 
 function convertUnitVectorsToVector(latex) {
     if (!latex) return "";
-    const vectorGroupRegex = /\[?\s*(?:[+-]?\s*(?:(?<!\\)\b[a-zA-Z0-9./]+)?\s*\\hat\{[ijk]\}\s*)+\s*\]?/g;
+    const vectorGroupRegex = /\[?\s*(?:[+-]?\s*(?:(?<!\\)\b[a-zA-Z0-9./]+)?\s*\\hat\{[ijk]\}\s*(?:(?<!\\)\b[a-zA-Z0-9./]+)?\s*)+\s*\]?/g;
 
     return latex.replace(vectorGroupRegex, (match) => {
         if (!match.includes('\\hat{')) return match;
 
         let x = [], y = [], z = [];
-        const termRegex = /([+-]?)\s*(?:(?<!\\)\b([a-zA-Z0-9./]+))?\s*\\hat\{([ijk])\}/g;
+        const termRegex = /([+-]?)\s*(?:(?<!\\)\b([a-zA-Z0-9./]+))?\s*\\hat\{([ijk])\}\s*(?:(?<!\\)\b([a-zA-Z0-9./]+))?/g;
         let termMatch;
         let matchedAny = false;
 
@@ -2413,8 +2413,21 @@ function convertUnitVectorsToVector(latex) {
             matchedAny = true;
             let sign = termMatch[1].trim();
             if (sign === '') sign = '+';
-            let coeff = termMatch[2] ? termMatch[2].trim() : '';
-            if (coeff === '') coeff = '1';
+
+            let coeffBefore = termMatch[2] ? termMatch[2].trim() : '';
+            let coeffAfter = termMatch[4] ? termMatch[4].trim() : '';
+
+            let coeff = '';
+            if (coeffBefore !== '' && coeffAfter !== '') {
+                coeff = `(${coeffBefore})*(${coeffAfter})`;
+            } else if (coeffBefore !== '') {
+                coeff = coeffBefore;
+            } else if (coeffAfter !== '') {
+                coeff = coeffAfter;
+            } else {
+                coeff = '1';
+            }
+
             let fullCoeff = (sign === '-' ? '-' : '+') + coeff;
             let unit = termMatch[3];
 
@@ -2872,7 +2885,7 @@ function translateLatexToNerdamer(latex) {
                                 expr = translateLatexToNerdamer(remaining);
                             }
                         } else {
-                            expr = parseGroup();
+                            expr = parseDerivativeArgument();
                         }
                     }
 
@@ -2886,7 +2899,7 @@ function translateLatexToNerdamer(latex) {
                                 isOdeMode = true;
                             }
                         }
-                        if (isOdeMode) {
+                        if (isOdeMode && /\b[yY]\b/.test(expr)) {
                             if (order === "1") {
                                 res += `d${expr}/d${wrt}`;
                             } else {
@@ -3229,6 +3242,50 @@ function translateLatexToNerdamer(latex) {
             return res;
         }
         return parseGroup();
+    }
+
+    function parseDerivativeArgument() {
+        skipSpaces();
+        let start = pos;
+        let braceDepth = 0;
+        let parenDepth = 0;
+        let bracketDepth = 0;
+        let hasConsumedNonSpace = false;
+
+        while (pos < latex.length) {
+            if (braceDepth === 0 && parenDepth === 0 && bracketDepth === 0) {
+                let remainingStr = latex.substring(pos);
+                if (hasConsumedNonSpace) {
+                    if (remainingStr.startsWith('+') ||
+                        remainingStr.startsWith('-') ||
+                        remainingStr.startsWith('=') ||
+                        remainingStr.startsWith(',') ||
+                        remainingStr.startsWith('\\pm') ||
+                        remainingStr.startsWith('\\le') ||
+                        remainingStr.startsWith('\\ge') ||
+                        remainingStr.startsWith('\\leq') ||
+                        remainingStr.startsWith('\\geq') ||
+                        remainingStr.startsWith('\\approx')) {
+                        break;
+                    }
+                }
+            }
+
+            let char = latex[pos];
+            if (char === '{') braceDepth++;
+            else if (char === '}') braceDepth--;
+            else if (char === '(') parenDepth++;
+            else if (char === ')') parenDepth--;
+            else if (char === '[') bracketDepth++;
+            else if (char === ']') bracketDepth--;
+
+            if (char !== ' ' && char !== '\t') {
+                hasConsumedNonSpace = true;
+            }
+            pos++;
+        }
+        let argLatex = latex.substring(start, pos).trim();
+        return translateLatexToNerdamer(argLatex);
     }
 
     let result = parse().trim();
@@ -7757,19 +7814,105 @@ function isMessySolution(str) {
     return false;
 }
 
+function parseComplexDecimal(valText) {
+    valText = valText.replace(/\s+/g, '');
+    if (!valText) return { re: 0, im: 0 };
+
+    let terms = [];
+    let currentTerm = '';
+    for (let i = 0; i < valText.length; i++) {
+        let c = valText[i];
+        if (i > 0 && (c === '+' || c === '-') && valText[i - 1].toLowerCase() !== 'e') {
+            terms.push(currentTerm);
+            currentTerm = c;
+        } else {
+            currentTerm += c;
+        }
+    }
+    if (currentTerm) {
+        terms.push(currentTerm);
+    }
+
+    let re = 0;
+    let im = 0;
+
+    for (let term of terms) {
+        if (term.includes('i')) {
+            let coeffStr = term.replace(/\*?i/g, '');
+            let val = 1;
+            if (coeffStr === '' || coeffStr === '+') val = 1;
+            else if (coeffStr === '-') val = -1;
+            else val = Number(coeffStr);
+
+            if (isNaN(val)) return { re: null, im: null };
+            im += val;
+        } else {
+            let val = Number(term);
+            if (isNaN(val)) return { re: null, im: null };
+            re += val;
+        }
+    }
+
+    return { re, im };
+}
+
+function formatDecimalStringToLaTeX(decStr) {
+    if (!decStr) return '';
+    let res = decStr.replace(/\*i/g, 'i');
+    res = res.replace(/\+/g, ' + ').replace(/-/g, ' - ');
+    res = res.trim();
+    if (res.startsWith('- ')) {
+        res = '-' + res.substring(2);
+    }
+    if (res.startsWith('+ ')) {
+        res = res.substring(2);
+    }
+    return res;
+}
+
 function getDecimalValue(exprStr) {
     if (!exprStr || typeof exprStr !== 'string') return null;
     try {
         let valText = nerdamer(exprStr).evaluate().text('decimals');
-        let numVal = Number(valText.trim());
-        if (!isNaN(numVal) && isFinite(numVal)) {
-            let floatVal = parseFloat(valText);
-            let formatted = floatVal.toFixed(10);
-            if (formatted.includes('.')) {
-                formatted = formatted.replace(/0+$/, '');
-                formatted = formatted.replace(/\.$/, '');
+        let cleaned = valText.toLowerCase().replace(/[\d\s.+\-*\/()e]/g, '');
+        if (cleaned === 'i' || cleaned === '') {
+            let parsed = parseComplexDecimal(valText);
+            let realVal = parsed.re;
+            let imagVal = parsed.im;
+
+            if (realVal !== null && imagVal !== null) {
+                let realFormatted = realVal.toFixed(10);
+                if (realFormatted.includes('.')) {
+                    realFormatted = realFormatted.replace(/0+$/, '').replace(/\.$/, '');
+                }
+                if (realFormatted === '-0') realFormatted = '0';
+
+                let imagFormatted = imagVal.toFixed(10);
+                if (imagFormatted.includes('.')) {
+                    imagFormatted = imagFormatted.replace(/0+$/, '').replace(/\.$/, '');
+                }
+                if (imagFormatted === '-0') imagFormatted = '0';
+
+                if (realFormatted === '0' && imagFormatted === '0') {
+                    return '0';
+                } else if (realFormatted === '0') {
+                    if (imagFormatted === '1') return 'i';
+                    if (imagFormatted === '-1') return '-i';
+                    return `${imagFormatted}*i`;
+                } else if (imagFormatted === '0') {
+                    return realFormatted;
+                } else {
+                    let sign = imagVal < 0 ? '-' : '+';
+                    let absImagFormatted = Math.abs(imagVal).toFixed(10);
+                    if (absImagFormatted.includes('.')) {
+                        absImagFormatted = absImagFormatted.replace(/0+$/, '').replace(/\.$/, '');
+                    }
+                    if (absImagFormatted === '1') {
+                        return `${realFormatted}${sign}i`;
+                    }
+                    return `${realFormatted}${sign}${absImagFormatted}*i`;
+                }
             }
-            return formatted;
         }
     } catch (e) {
         console.error("Error in getDecimalValue for expression:", exprStr, e);
@@ -8633,7 +8776,7 @@ function simplifyFractionsInText(str) {
 
     // 1. Simplify decimals to fractions
     // Match numbers like 0.333333333333 or 1.5 etc.
-    str = str.replace(/\b\d+\.\d+\b/g, (match) => {
+    str = str.replace(/\b\d+\.\d+/g, (match) => {
         let val = parseFloat(match);
         let simple = toSimpleFraction(val);
         return simple;
@@ -8745,13 +8888,16 @@ function replaceDiffsWithProductRule(unsolved) {
             }
             args.push(currentArg.trim());
 
-            if (args.length >= 2 && args[1] === 'x' && args[0].includes('y')) {
+            if (args.length >= 2 && args[1] === 'x' && /\by\b/.test(args[0])) {
                 let expr = args[0];
                 let order = args.length >= 3 ? args[2] : "1";
-                let replacement = productRule(expr, order);
-                unsolved = unsolved.replaceAll(fullDiff, `(${replacement})`);
-                idx = unsolved.indexOf('diff(');
-                continue;
+                let numericOrder = parseInt(order);
+                if (!isNaN(numericOrder) && numericOrder > 0) {
+                    let replacement = productRule(expr, order);
+                    unsolved = unsolved.replaceAll(fullDiff, `(${replacement})`);
+                    idx = unsolved.indexOf('diff(');
+                    continue;
+                }
             }
         }
         idx = unsolved.indexOf('diff(', idx + 1);
@@ -8789,7 +8935,7 @@ function solveSystemOfEquations(equations, eqLaTeXs) {
                     let latexVal = katexFormat(simplifyFractionsInText(val));
                     let dec = getDecimalValue(val);
                     if (dec && dec !== val && isMessySolution(val)) {
-                        solLines.push(`${varName} \\approx ${dec}`);
+                        solLines.push(`${varName} \\approx ${formatDecimalStringToLaTeX(dec)}`);
                     } else {
                         solLines.push(`${varName} = ${latexVal}`);
                     }
@@ -8804,7 +8950,7 @@ function solveSystemOfEquations(equations, eqLaTeXs) {
                 let latexVal = katexFormat(simplifyFractionsInText(valStr));
                 let dec = getDecimalValue(valStr);
                 if (dec && dec !== valStr && isMessySolution(valStr)) {
-                    solLines.push(`${varName} \\approx ${dec}`);
+                    solLines.push(`${varName} \\approx ${formatDecimalStringToLaTeX(dec)}`);
                 } else {
                     solLines.push(`${varName} = ${latexVal}`);
                 }
@@ -8995,6 +9141,11 @@ function preprocessMatrixOperators(str) {
 
                 if (operandStart !== -1) {
                     let operand = str.substring(operandStart, idx + 1);
+                    const isMatrixOrVector = /matrix|vector|bmatrix|vmatrix|\[|\]/i.test(operand);
+                    if (!isMatrixOrVector) {
+                        i += opLen;
+                        continue;
+                    }
                     let coefficient = "";
                     let variable = operand;
 
@@ -9203,7 +9354,12 @@ function mathSolver(user_input, rawDisplayInput = "") {
             let eq = `(${lhs}) - (${rhs})`;
 
             // Solve equation
-            let solutions = nerdamer("solve(" + eq + ", x)");
+            let solutions;
+            try {
+                solutions = nerdamer("roots(" + eq + ")");
+            } catch (e) {
+                solutions = nerdamer("solve(" + eq + ", x)");
+            }
 
             // Render original equation
             const pEq = document.createElement('p');
@@ -9226,7 +9382,7 @@ function mathSolver(user_input, rawDisplayInput = "") {
                 let dec = getDecimalValue(str);
                 if (dec && dec !== str && isMessySolution(str)) {
                     hasApprox = true;
-                    return dec;
+                    return formatDecimalStringToLaTeX(dec);
                 }
                 return latex;
             });
@@ -9537,7 +9693,7 @@ function mathSolver(user_input, rawDisplayInput = "") {
                                     for (let el of elements) {
                                         let elDec = getDecimalValue(el.toString());
                                         if (elDec !== null) {
-                                            decList.push(elDec);
+                                            decList.push(formatDecimalStringToLaTeX(elDec));
                                             if (elDec !== el.toString() && elDec !== simplifyFractionsInText(el.toString())) {
                                                 hasVal = true;
                                             }
@@ -9546,7 +9702,7 @@ function mathSolver(user_input, rawDisplayInput = "") {
                                         }
                                     }
                                     if (hasVal) {
-                                        resultLaTeX += ' \\approx ' + decList.join(', ');
+                                        resultLaTeX = '\\approx ' + decList.join(', ');
                                     }
                                 } catch (e) {
                                     console.error("Error formatting decimal collection:", e);
@@ -9555,9 +9711,9 @@ function mathSolver(user_input, rawDisplayInput = "") {
                         } else {
                             let dec = getDecimalValue(processedInput);
                             if (dec && dec !== simplifiedStr && isMessySolution(simplified.toString())) {
-                                resultLaTeX = '\\approx ' + dec;
+                                resultLaTeX = '\\approx ' + formatDecimalStringToLaTeX(dec);
                             } else if (dec && dec !== simplifiedStr && dec !== simplifyFractionsInText(simplified.toString())) {
-                                resultLaTeX = katexFormat(simplifiedStr) + ' \\approx ' + dec;
+                                resultLaTeX = katexFormat(simplifiedStr) + ' \\approx ' + formatDecimalStringToLaTeX(dec);
                             } else if (evaluated.toString() !== simplified.toString()) {
                                 try {
                                     let evalText = simplifyFractionsInText(evaluated.text());
