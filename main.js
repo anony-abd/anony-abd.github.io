@@ -1094,7 +1094,7 @@ function renderKatex(expr, el, options = {}) {
     }
 }
 
-if (boxInput) {
+if (boxInput && !document.getElementById("antex-page-sheet")) {
     boxInput.addEventListener('input', function () {
         const newVal = this.value;
         if (!isUndoRedoAction && lastOdeValue !== newVal) {
@@ -6750,7 +6750,7 @@ if (typeof document !== 'undefined') {
         const ode = document.getElementById("ode");
         const overlay = document.getElementById("ode-math-overlay");
 
-        if (math && ode) {
+        if (math && ode && !document.getElementById("antex-page-sheet")) {
             math.addEventListener('input', handleMathInput);
             math.addEventListener('paste', handleMathPaste);
             math.addEventListener('click', function () {
@@ -10014,6 +10014,25 @@ function mathSolver(user_input, rawDisplayInput = "") {
                         }
                         try {
                             simplified = processedInput.includes('partfrac') ? expr : expr.simplify();
+                            if (simplified.toString() !== expr.toString()) {
+                                let vars = expr.variables();
+                                if (vars.length > 0) {
+                                    let valExpr = nerdamer(expr.toString());
+                                    let valSimp = nerdamer(simplified.toString());
+                                    for (let v of vars) {
+                                        valExpr = valExpr.sub(v, '0.5');
+                                        valSimp = valSimp.sub(v, '0.5');
+                                    }
+                                    valExpr = valExpr.evaluate();
+                                    valSimp = valSimp.evaluate();
+                                    let numExpr = Number(valExpr.text('decimals'));
+                                    let numSimp = Number(valSimp.text('decimals'));
+                                    if (!isNaN(numExpr) && !isNaN(numSimp) && Math.abs(numExpr - numSimp) >= 1e-7) {
+                                        console.log("Buggy Nerdamer simplification detected. Falling back to unsimplified expression.");
+                                        simplified = expr;
+                                    }
+                                }
+                            }
                         } catch (err) {
                             simplified = expr;
                         }
