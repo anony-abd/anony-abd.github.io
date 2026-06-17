@@ -2118,7 +2118,10 @@ function escapeLatexOverlay(str) {
             res += '\\cdot ';
         } else if (c === '\\') {
             let next = str[i + 1];
-            if (next && (/[a-zA-Z]/.test(next) || next === ',' || next === ' ' || next === '{' || next === '}' || next === '_' || next === '^' || next === '[' || next === ']' || next === '\\' || next === '#' || next === '$' || next === '&' || next === '%')) {
+            if (next === '\\') {
+                res += '\\\\';
+                i++; // skip the second backslash
+            } else if (next && (/[a-zA-Z]/.test(next) || next === ',' || next === ' ' || next === '{' || next === '}' || next === '_' || next === '^' || next === '[' || next === ']' || next === '#' || next === '$' || next === '&' || next === '%')) {
                 res += '\\';
             } else {
                 res += '\\backslash ';
@@ -4901,6 +4904,30 @@ function tryDeleteLatexCommand(math) {
     lastEmptyBoundBackspace = null;
 
     for (let t of templates) {
+        if (t.type === 'matrix') {
+            for (let k = 1; k < t.parts.length; k++) {
+                let prevPart = t.parts[k - 1];
+                let part = t.parts[k];
+                let limit = (part.value === "") ? part.cellEnd : part.start;
+                if (pos > prevPart.end && pos <= limit) {
+                    math.setSelectionRange(prevPart.end, prevPart.end);
+                    return true;
+                }
+            }
+            if (t.parts.length > 0) {
+                let firstPart = t.parts[0];
+                let limit = (firstPart.value === "") ? firstPart.cellEnd : firstPart.start;
+                if (pos > t.start && pos <= limit) {
+                    math.setSelectionRange(t.start, t.start);
+                    return true;
+                }
+                let lastPart = t.parts[t.parts.length - 1];
+                if (pos > lastPart.end && pos < t.end) {
+                    math.setSelectionRange(lastPart.end, lastPart.end);
+                    return true;
+                }
+            }
+        }
         for (let part of t.parts) {
             // Protect structural closing brace/bracket at the end of a template part.
             // If the cursor is immediately after the closing brace (pos === part.end + 1),
@@ -4987,6 +5014,30 @@ function tryDeleteLatexCommandForward(math) {
     const templates = getAllTemplates(val);
 
     for (let t of templates) {
+        if (t.type === 'matrix') {
+            for (let k = 0; k < t.parts.length - 1; k++) {
+                let part = t.parts[k];
+                let nextPart = t.parts[k + 1];
+                let startLimit = (part.value === "") ? part.cellStart : part.end;
+                if (pos >= startLimit && pos < nextPart.start) {
+                    math.setSelectionRange(nextPart.start, nextPart.start);
+                    return true;
+                }
+            }
+            if (t.parts.length > 0) {
+                let firstPart = t.parts[0];
+                if (pos >= t.start && pos < firstPart.cellStart) {
+                    math.setSelectionRange(firstPart.start, firstPart.start);
+                    return true;
+                }
+                let lastPart = t.parts[t.parts.length - 1];
+                let startLimit = (lastPart.value === "") ? lastPart.cellStart : lastPart.end;
+                if (pos >= startLimit && pos < t.end) {
+                    math.setSelectionRange(t.end, t.end);
+                    return true;
+                }
+            }
+        }
         for (let part of t.parts) {
             // Protect structural opening brace/bracket at the start of a template part.
             // If the cursor is immediately before the opening brace (pos === part.start - 1),
