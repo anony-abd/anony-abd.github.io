@@ -1676,6 +1676,7 @@ function translateBesselInput(str) {
 function getEquation() {
     if (typeof document === 'undefined') return;
     let userInput = document.getElementById("ode").value;
+    userInput = preprocessTrigArgsWithoutParentheses(userInput);
     const icBraceRegex = /\{([^{};]+);\s*([a-zA-Z](?:'{1,3}|\(\d+\))?\([^)]+\))\}(?=\s*=)/g;
     userInput = userInput.replace(icBraceRegex, '{$1}; $2');
     userInput = translateLatexToNerdamer(userInput);
@@ -2901,6 +2902,12 @@ function convertLatexMatrixToNerdamer(latex) {
 function preprocessLaplace(latex) {
     if (!latex) return "";
 
+    // Normalize L(...) or L{...} to \mathcal{L}(...) or \mathcal{L}{...}
+    // and L^-1(...) or L^{-1}(...) to \mathcal{L}^{-1}(...) or \mathcal{L}^{-1}{...}
+    latex = latex.replace(/(?<!\\mathcal\s*\{\s*)\bL\s*\^\s*\{\s*-1\s*\}\s*([({])/g, '\\mathcal{L}^{-1}$1');
+    latex = latex.replace(/(?<!\\mathcal\s*\{\s*)\bL\s*\^\s*-1\s*([({])/g, '\\mathcal{L}^{-1}$1');
+    latex = latex.replace(/(?<!\\mathcal\s*\{\s*)\bL\s*([({])/g, '\\mathcal{L}$1');
+
     // 1. Convert any log subscripts without backslash or with different parentheses to standard \log_{base}{expr}
     latex = latex.replace(/\\?log_([a-zA-Z0-9]+)\(([^)]+)\)/g, '\\log_{$1}{$2}');
     latex = latex.replace(/\\?log_([a-zA-Z0-9]+)\{([^}]+)\}/g, '\\log_{$1}{$2}');
@@ -3226,6 +3233,24 @@ function translateLatexToNerdamer(latex) {
             }
 
             if (char === '\\') {
+                if (pos > 0) {
+                    let prevChar = latex[pos - 1];
+                    if (/[0-9a-zA-Z\)}]/.test(prevChar)) {
+                        let isCmd = false;
+                        if (/[a-zA-Z]/.test(prevChar)) {
+                            let k = pos - 1;
+                            while (k >= 0 && /[a-zA-Z]/.test(latex[k])) {
+                                k--;
+                            }
+                            if (k >= 0 && latex[k] === '\\') {
+                                isCmd = true;
+                            }
+                        }
+                        if (!isCmd) {
+                            res += '*';
+                        }
+                    }
+                }
                 let cmd = "";
                 pos++;
                 while (pos < latex.length && /[a-zA-Z]/.test(latex[pos])) {
@@ -7246,8 +7271,28 @@ if (typeof document !== 'undefined') {
                                 e.preventDefault();
                                 const before = val.substring(0, pos);
                                 const after = val.substring(this.selectionEnd);
-                                this.value = before + nextChar + ')' + after.substring(1);
-                                pos = pos + 2;
+
+                                const { template, partIndex } = getInnermostTemplatePart(val, pos);
+                                if (nextChar === '}' && template && partIndex !== -1) {
+                                    let part = template.parts[partIndex];
+                                    let partText = val.substring(part.start, pos);
+                                    let openCount = (partText.match(/\(/g) || []).length;
+                                    let closeCount = (partText.match(/\)/g) || []).length;
+                                    if (openCount > closeCount) {
+                                        this.value = before + ')' + after;
+                                        if (openCount === closeCount + 1) {
+                                            pos = pos + 2; // Jump past }
+                                        } else {
+                                            pos = pos + 1; // Stay inside
+                                        }
+                                    } else {
+                                        this.value = before + nextChar + ')' + after.substring(1);
+                                        pos = pos + 2;
+                                    }
+                                } else {
+                                    this.value = before + nextChar + ')' + after.substring(1);
+                                    pos = pos + 2;
+                                }
                                 this.setSelectionRange(pos, pos);
                                 this.dispatchEvent(new Event('input'));
                             }
@@ -8635,14 +8680,17 @@ function formatRawMathToLaTeX(str) {
     if (!str) return "";
 
     if (!str.includes('\\') && !str.includes('{') && !str.includes('}')) {
-        try {
-            if (!/\b(laplace|ilaplace|ilt)\b/i.test(str)) {
-                if (!str.includes('secondroot') && !str.includes('cuberoot') && !str.includes('fourthroot') && !str.includes('fifthroot') && !str.includes('sixthroot') && !str.includes('seventhroot') && !str.includes('eighthroot') && !str.includes('ninthroot') && !str.includes('tenthroot')) {
-                    return nerdamer(str).toTeX();
+        let isParenthesizedTrig = /\(\s*(?:sin|cos|tan|csc|cosec|sec|sech|csch|cosech|cot|sinh|cosh|tanh|coth)\s*\([^)]*\)\s*\)\s*\^/.test(str);
+        if (!isParenthesizedTrig) {
+            try {
+                if (!/\b(laplace|ilaplace|ilt)\b/i.test(str)) {
+                    if (!str.includes('secondroot') && !str.includes('cuberoot') && !str.includes('fourthroot') && !str.includes('fifthroot') && !str.includes('sixthroot') && !str.includes('seventhroot') && !str.includes('eighthroot') && !str.includes('ninthroot') && !str.includes('tenthroot')) {
+                        return nerdamer.convertToLaTeX(str);
+                    }
                 }
+            } catch (e) {
+                // fallback to manual regex conversions
             }
-        } catch (e) {
-            // fallback to manual regex conversions
         }
     }
 
@@ -10017,6 +10065,7 @@ function preprocessTrigArgsWithoutParentheses(str) {
         let spaces = s.match(/^\s*/)[0];
         let rem = s.slice(spaces.length);
         if (!rem) return null;
+        if (rem.startsWith('\\left') || rem.startsWith('\\right')) return null;
         if (rem[0] === '(') return null;
         let match = rem.match(/^(?:\d+(?:\.\d+)?\s*\*?\s*)?(?:[a-zA-Z]+|\\[a-zA-Z]+)(?:\s*\^\s*(?:\d+|[a-zA-Z]+|\{[a-zA-Z0-9]+\}))?(?:\s*[\/\*]\s*(?:\d+|[a-zA-Z]+|\\[a-zA-Z]+))?/);
         if (!match) {
@@ -10937,7 +10986,7 @@ function solveInitValue(firstODEsol, parsedConds) {
 
     if (isExplicit) {
         // --- EXPLICIT GENERAL SOLUTION (y = RHS) ---
-        let renamedExpr = rhsExpr.replace(/\bC\b/g, 'C_0').replace(/\bconst_e\b/g, 'e');
+        let renamedExpr = rhsExpr.replace(/\bC\b/g, 'C_0').replace(/\be\b/g, 'const_e');
         let matches = renamedExpr.match(/\bC_\d+\b/g) || [];
         let uniqueConstants = [...new Set(matches)];
 
@@ -11006,7 +11055,18 @@ function solveInitValue(firstODEsol, parsedConds) {
                     return eq;
                 }
             });
-            solution = nerdamer.solveEquations(eqsEvaluated);
+            if (uniqueConstants.length === 1) {
+                let sol = nerdamer.solve(eqsEvaluated[0], uniqueConstants[0]);
+                let valStr = "";
+                if (sol.symbol && sol.symbol.elements && sol.symbol.elements.length > 0) {
+                    valStr = sol.symbol.elements[0].toString();
+                } else {
+                    valStr = sol.toString().replace(/^\[/, '').replace(/\]$/, '');
+                }
+                solution = [[uniqueConstants[0], valStr]];
+            } else {
+                solution = nerdamer.solveEquations(eqsEvaluated, uniqueConstants);
+            }
         } catch (e) {
             console.error("Error in nerdamer.solveEquations:", e);
             return null;
@@ -11146,7 +11206,18 @@ function solveInitValue(firstODEsol, parsedConds) {
                     return eq;
                 }
             });
-            solution = nerdamer.solveEquations(eqsEvaluated);
+            if (uniqueConstants.length === 1) {
+                let sol = nerdamer.solve(eqsEvaluated[0], uniqueConstants[0]);
+                let valStr = "";
+                if (sol.symbol && sol.symbol.elements && sol.symbol.elements.length > 0) {
+                    valStr = sol.symbol.elements[0].toString();
+                } else {
+                    valStr = sol.toString().replace(/^\[/, '').replace(/\]$/, '');
+                }
+                solution = [[uniqueConstants[0], valStr]];
+            } else {
+                solution = nerdamer.solveEquations(eqsEvaluated, uniqueConstants);
+            }
         } catch (e) {
             console.error("Error in nerdamer.solveEquations:", e);
             return null;
@@ -11571,6 +11642,11 @@ function modify_inp(input) {
 
     console.log(`Modifying input String: modify_inp(${input})`);
 
+    // Normalize dy/dx to (d^1y/dx^1)
+    input = input.replace(/\bdy\s*\/\s*dx\b/g, '(d^1y/dx^1)');
+    // Normalize diff(y, x) to diff(y, x, 1)
+    input = input.replace(/\bdiff\(\s*y\s*,\s*x\s*\)/g, 'diff(y, x, 1)');
+
     let modified_output = input;
 
     if (input.includes('d')) {
@@ -11965,21 +12041,43 @@ function separateFactors(expr) {
         const factors = [];
         let start = 0;
 
-        for (let i = 0; i <= factored.length; i++) {
-            if (i < factored.length) {
-                let char = factored[i];
-                if (char === '(') depth++;
-                else if (char === ')') depth--;
-                else if (char === '[') bracketDepth++;
-                else if (char === ']') bracketDepth--;
-            }
-
-            if (i === factored.length || (factored[i] === '*' && depth === 0 && bracketDepth === 0)) {
-                let factor = factored.slice(start, i).trim();
-                if (factor) {
-                    factors.push(factor);
+        // Check if there is any binary + or - at depth 0
+        let hasBinaryPlusMinus = false;
+        for (let i = 0; i < factored.length; i++) {
+            let char = factored[i];
+            if (char === '(') depth++;
+            else if (char === ')') depth--;
+            else if (char === '[') bracketDepth++;
+            else if (char === ']') bracketDepth--;
+            else if ((char === '+' || char === '-') && depth === 0 && bracketDepth === 0) {
+                if (i > 0 && factored[i - 1] !== '*' && factored[i - 1] !== '/' && factored[i - 1] !== '^') {
+                    hasBinaryPlusMinus = true;
+                    break;
                 }
-                start = i + 1;
+            }
+        }
+
+        if (hasBinaryPlusMinus) {
+            factors.push(factored);
+        } else {
+            depth = 0;
+            bracketDepth = 0;
+            for (let i = 0; i <= factored.length; i++) {
+                if (i < factored.length) {
+                    let char = factored[i];
+                    if (char === '(') depth++;
+                    else if (char === ')') depth--;
+                    else if (char === '[') bracketDepth++;
+                    else if (char === ']') bracketDepth--;
+                }
+
+                if (i === factored.length || (factored[i] === '*' && depth === 0 && bracketDepth === 0)) {
+                    let factor = factored.slice(start, i).trim();
+                    if (factor) {
+                        factors.push(factor);
+                    }
+                    start = i + 1;
+                }
             }
         }
 
@@ -12415,6 +12513,54 @@ function _solveSingleOrder(problem) {
         });
     }
     if (partSol.length === 1 && partSol[0] === "0") {
+        try {
+            console.log("Normal solving failed. Trying variable swap fallback...");
+            let swappedProblem = problem;
+            swappedProblem = swappedProblem.replace(/\bx\b/g, '@@@Y@@@').replace(/\by\b/g, '@@@X@@@');
+            swappedProblem = swappedProblem.replace(/@@@Y@@@/g, 'y').replace(/@@@X@@@/g, 'x');
+            swappedProblem = swappedProblem.replace(/\bY1\b/g, '(1/Y1)');
+
+            let solvedForY1 = nerdamer(`solve(${swappedProblem}, Y1)`).toString().replaceAll('[', '').replaceAll(']', '');
+            if (solvedForY1 && solvedForY1 !== '0' && !solvedForY1.startsWith('[')) {
+                console.log(`Swapped equation solved for Y1: Y1 = ${solvedForY1}`);
+                // Clear linear step vars before running swapped solver
+                linear_P_step = ''; linear_Q_step = ''; linear_IF_step = ''; linear_integ_step = '';
+                let swappedSol = _solveSingleOrder(`Y1 = ${solvedForY1}`);
+                if (swappedSol && swappedSol !== '0' && swappedSol !== 'no \\ analytical \\ solution \\ exists') {
+                    console.log(`Swapped problem solved successfully: ${swappedSol}`);
+
+                    // Swap steps back to original variables if they were set
+                    const swapLaTeX = (str) => {
+                        if (!str) return str;
+                        let res = str.replace(/\\frac{dy}{dx}/g, '@@@DYDX@@@')
+                            .replace(/\\frac{dx}{dy}/g, '@@@DXDY@@@')
+                            .replace(/y'/g, '@@@YPRIME@@@')
+                            .replace(/x'/g, '@@@XPRIME@@@');
+                        res = res.replace(/\bx\b/g, '@@@Y@@@').replace(/\by\b/g, '@@@X@@@');
+                        res = res.replace(/@@@Y@@@/g, 'y').replace(/@@@X@@@/g, 'x')
+                            .replace(/@@@DYDX@@@/g, '\\frac{dx}{dy}')
+                            .replace(/@@@DXDY@@@/g, '\\frac{dy}{dx}')
+                            .replace(/@@@YPRIME@@@/g, "x'")
+                            .replace(/@@@XPRIME@@@/g, "y'");
+                        return res;
+                    };
+                    if (linear_P_step) linear_P_step = swapLaTeX(linear_P_step);
+                    if (linear_Q_step) linear_Q_step = swapLaTeX(linear_Q_step);
+                    if (linear_IF_step) linear_IF_step = swapLaTeX(linear_IF_step);
+                    if (linear_integ_step) linear_integ_step = swapLaTeX(linear_integ_step);
+                    if (separable_form_step) separable_form_step = swapLaTeX(separable_form_step);
+                    if (separable_sol_step) separable_sol_step = swapLaTeX(separable_sol_step);
+                    if (separable_separated_step) separable_separated_step = swapLaTeX(separable_separated_step);
+                    if (separable_integration_step) separable_integration_step = swapLaTeX(separable_integration_step);
+
+                    let finalSol = swappedSol.replace(/\bx\b/g, '@@@Y@@@').replace(/\by\b/g, '@@@X@@@');
+                    finalSol = finalSol.replace(/@@@Y@@@/g, 'y').replace(/@@@X@@@/g, 'x');
+                    return finalSol;
+                }
+            }
+        } catch (swapErr) {
+            console.error("Error in variable swap fallback:", swapErr);
+        }
         return "no \\ analytical \\ solution \\ exists";
     }
     let hasEquals = partSol.some(sol => sol.includes('='));
@@ -12878,7 +13024,6 @@ function reduceToExactDiff(P, Q, dPy, dQx) {
 
 function linearODEsolver(input, allowIntegrate = false) {
     try {
-        input = input.replace(/\bconst_e\b/g, 'e');
         let eq = input.split('=').join('-(') + ')';
         eq = convertTrigReciprocals(eq);
         let eqExpr = nerdamer(eq).simplify().toString();
@@ -12896,16 +13041,30 @@ function linearODEsolver(input, allowIntegrate = false) {
             let Q = nerdamer(Y1).sub('y', '0').simplify().toString();
             let P = nerdamer(`diff(${Y1}, y)`).multiply('-1').simplify().toString();
 
-            let h = nerdamer(`integrate(${P}, x)`).simplify().toString();
+            let P_e = P.replace(/\bconst_e\b/g, 'e');
+            let Q_e = Q.replace(/\bconst_e\b/g, 'e');
+
+            let h = nerdamer(`integrate(${P_e}, x)`).simplify().toString();
             let IF = nerdamer(`exp(${h})`).simplify().toString();
             let IF_inv = nerdamer(`exp(-(${h}))`).simplify().toString();
-            let integral = nerdamer(`integrate((${Q}) * (${IF}), x)`).simplify().toString();
+            let integral = nerdamer(`integrate((${Q_e}) * (${IF}), x)`).simplify().toString();
+
+            IF = IF.replace(/\be\b/g, 'const_e');
+            IF_inv = IF_inv.replace(/\be\b/g, 'const_e');
+            integral = integral.replace(/\be\b/g, 'const_e');
 
             let particular = nerdamer(`(${integral}) * (${IF_inv})`).expand().simplify().toString().replace(/\be\b/g, 'const_e');
             let transient = nerdamer(`const_C * (${IF_inv})`).simplify().toString().replace(/\be\b/g, 'const_e');
             let sol = particular + ' + ' + transient;
-            sol = sol.replace(/\bconst_C\b/g, 'C');
-            sol = cleanSolveResult(sol);
+
+            let finalSol = sol;
+            try {
+                finalSol = nerdamer(finalSol).simplify().toString();
+            } catch (err) {
+                console.error("Error simplifying linear ODE finalSol:", err);
+            }
+            finalSol = finalSol.replace(/\bconst_C\b/g, 'C').replace(/\bconst_e\b/g, 'e');
+            sol = cleanSolveResult(finalSol);
 
             if (sol === '0' || (!allowIntegrate && sol.includes('integrate'))) {
                 console.log("Linear ODE integration failed analytically, returning '0' for fallback.");
@@ -12913,8 +13072,8 @@ function linearODEsolver(input, allowIntegrate = false) {
             }
 
             try {
-                linear_P_step = `\\text{First-order Linear ODE form: } y' + P(x)y = Q(x) \\\\ P(x) = ${nerdamer(P).toTeX()}`;
-                linear_Q_step = `Q(x) = ${nerdamer(Q).toTeX()}`;
+                linear_P_step = `\\text{First-order Linear ODE form: } y' + P(x)y = Q(x) \\\\ P(x) = ${nerdamer(P.replace(/\bconst_e\b/g, 'e')).toTeX()}`;
+                linear_Q_step = `Q(x) = ${nerdamer(Q.replace(/\bconst_e\b/g, 'e')).toTeX()}`;
                 linear_IF_step = `\\text{Integrating Factor: } I(x) = e^{\\int P(x)dx} = ${nerdamer(IF.replace(/\bconst_e\b/g, 'e')).toTeX()}`;
                 linear_integ_step = `\\text{General solution form: } y = \\frac{1}{I(x)} \\left( \\int Q(x) I(x) dx + C \\right) \\\\ \\text{General Solution Integral: } \\int Q(x)I(x)dx = ${nerdamer(integral.replace(/\bconst_e\b/g, 'e')).toTeX()}`;
             } catch (e) {
@@ -13225,6 +13384,9 @@ function nerdDifferentiate(unsolved) {
 
     console.log(`nerdDifferentiate(${unsolved}) called`);
 
+    // Protect e from numerical evaluation in Nerdamer during differentiation
+    unsolved = unsolved.replace(/\be\b/g, 'const_e');
+
     let solvedDeq = unsolved;
     let solvedNerd;
 
@@ -13263,7 +13425,7 @@ function nerdDifferentiate(unsolved) {
         solvedDeq = solvedDeq.replaceAll(eachDiff, nerdSolve);
     }
     console.log(`Final Nerdamer string after solving differential : ${solvedDeq}`);
-    return solvedDeq;
+    return solvedDeq.replace(/\bconst_e\b/g, 'e');
 }
 
 function totalDerivative(expr) {
