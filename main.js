@@ -172,10 +172,89 @@ function insertImplicitStars(str) {
         .replace(/(\))\s*(\()/g, '$1*$2')
         // Insert star between a closing paren and a variable/number (e.g. )y -> )*y
         .replace(/(\))\s*([a-zA-Z\d])/g, '$1*$2')
-        .replace(/\b(?!besselj|bessely|sin|cos|tan|cot|sec|csc|cosec|asin|acos|atan|acot|asec|acsc|acosec|log|ln|exp|sinh|cosh|tanh|sqrt|integrate|diff|pdiff|limit|sum|product|defint|nrt|abs|fact|squareroot|secondroot|secndroot|thirdroot|cuberoot|fourthroot|forthroot|fifthroot|sixthroot|seventhroot|eighthroot|ninthroot|tenthroot|multiply|matrix|vector|eigenvalues|eigenvectors|rref|basis|trace|transpose|det|inverse|invert|identity|null|conjugate|arg|realpart|imagpart|polarform|rectform|dot|cross|mag|normalize|angle|eq|lt|gt|lte|gte|laplace|ilaplace|ilt|mean|mode|median|zscore|smpvar|variance|smpstdev|stdev|factor|partfrac|lcm|gcd|roots|coeffs|deg|sqcomp|log10|min|max|floor|ceil|simplify|Si|Ci|Ei|rect|step|sinc|Shi|Chi|factorial|dfactorial|mod|erf|sign|round|pfactor|expand|fib|tri|parens|line|continued_fraction)([a-zA-Z]+)(\()/g, '$1*$2')
+        .replace(/\b(?!besselj|bessely|sin|cos|tan|cot|sec|csc|cosec|asin|acos|atan|acot|asec|acsc|acosec|log|ln|exp|sinh|cosh|tanh|sech|csch|cosech|coth|asinh|acosh|atanh|asech|acsch|acoth|sqrt|integrate|diff|pdiff|limit|sum|product|defint|nrt|abs|fact|squareroot|secondroot|secndroot|thirdroot|cuberoot|fourthroot|forthroot|fifthroot|sixthroot|seventhroot|eighthroot|ninthroot|tenthroot|multiply|matrix|vector|eigenvalues|eigenvectors|rref|basis|trace|transpose|det|inverse|invert|identity|null|conjugate|arg|realpart|imagpart|polarform|rectform|dot|cross|mag|normalize|angle|eq|lt|gt|lte|gte|laplace|ilaplace|ilt|mean|mode|median|zscore|smpvar|variance|smpstdev|stdev|factor|partfrac|lcm|gcd|roots|coeffs|deg|sqcomp|log10|min|max|floor|ceil|simplify|Si|Ci|Ei|rect|step|sinc|Shi|Chi|factorial|dfactorial|mod|erf|sign|round|pfactor|expand|fib|tri|parens|line|continued_fraction)([a-zA-Z]+)(\()/g, '$1*$2')
         // Insert star between standalone variables x/y and subsequent variables/functions (e.g. xe^y -> x*e^y, xy -> x*y)
         .replace(/\b([xy])([a-zA-Z])/gi, (match, p1, p2) => p1 + '*' + p2);
 }
+
+function splitStatements(str) {
+    let parts = [];
+    let current = "";
+    let depth = 0; // tracking ( )
+    let bracketDepth = 0; // tracking [ ]
+    let braceDepth = 0; // tracking { }
+    let insideQuote = null; // tracking strings if any
+
+    for (let i = 0; i < str.length; i++) {
+        let c = str[i];
+        if (c === '\\') {
+            current += c;
+            if (i + 1 < str.length) {
+                current += str[i + 1];
+                i++;
+            }
+            continue;
+        }
+        if (c === '"') {
+            if (insideQuote === c) {
+                insideQuote = null;
+            } else if (!insideQuote) {
+                insideQuote = c;
+            }
+        }
+        if (!insideQuote) {
+            if (c === '(') depth++;
+            else if (c === ')') depth--;
+            else if (c === '[') bracketDepth++;
+            else if (c === ']') bracketDepth--;
+            else if (c === '{') braceDepth++;
+            else if (c === '}') braceDepth--;
+            else if (c === ';' && depth === 0 && bracketDepth === 0 && braceDepth === 0) {
+                parts.push(current);
+                current = "";
+                continue;
+            }
+        }
+        current += c;
+    }
+    parts.push(current);
+    return parts.map(p => p.trim()).filter(Boolean);
+}
+
+function findTopLevelEquals(str) {
+    let depth = 0;
+    let bracketDepth = 0;
+    let braceDepth = 0;
+    let insideQuote = null;
+    for (let i = 0; i < str.length; i++) {
+        let c = str[i];
+        if (c === '\\') {
+            if (i + 1 < str.length) i++;
+            continue;
+        }
+        if (c === '"' || c === "'") {
+            if (insideQuote === c) insideQuote = null;
+            else if (!insideQuote) insideQuote = c;
+        }
+        if (!insideQuote) {
+            if (c === '(') depth++;
+            else if (c === ')') depth--;
+            else if (c === '[') bracketDepth++;
+            else if (c === ']') bracketDepth--;
+            else if (c === '{') braceDepth++;
+            else if (c === '}') braceDepth--;
+            else if (c === '=' && depth === 0 && bracketDepth === 0 && braceDepth === 0) {
+                return i;
+            }
+        }
+    }
+    return -1;
+}
+
+function isValidVar(str) {
+    return /^[a-zA-Z_][a-zA-Z0-9_]*(?:_\{?[a-zA-Z0-9]+\}?)?$/.test(str.trim());
+}
+
 
 // Globally override Frac.simple in Nerdamer core to catch and safely resolve any NaN fraction crashes
 // This handles cases where intermediate calculations in the solver have resulted in NaN decimals,
@@ -355,6 +434,45 @@ if (typeof nerdamer !== 'undefined' && typeof nerdamer.convertToLaTeX === 'funct
             }
         }
     };
+}
+
+function cleanLatexOperators(str) {
+    if (!str || typeof str !== 'string') return str;
+    const ops = [
+        'sin', 'cos', 'tan', 'sec', 'csc', 'cot',
+        'sinh', 'cosh', 'tanh', 'sech', 'csch', 'coth',
+        'log', 'ln', 'exp'
+    ];
+    let res = str;
+    for (let op of ops) {
+        let regex = new RegExp('\\\\mathrm\\{' + op + '\\}', 'g');
+        res = res.replace(regex, '\\' + op);
+    }
+    const invOps = {
+        'asin': '\\sin^{-1}',
+        'acos': '\\cos^{-1}',
+        'atan': '\\tan^{-1}',
+        'asec': '\\sec^{-1}',
+        'acsc': '\\csc^{-1}',
+        'acot': '\\cot^{-1}',
+        'asinh': '\\sinh^{-1}',
+        'acosh': '\\cosh^{-1}',
+        'atanh': '\\tanh^{-1}',
+        'asech': '\\sech^{-1}',
+        'acsch': '\\csch^{-1}',
+        'acoth': '\\coth^{-1}',
+        'arcsin': '\\arcsin',
+        'arccos': '\\arccos',
+        'arctan': '\\arctan',
+        'arccot': '\\arccot',
+        'arcsec': '\\arcsec',
+        'arccsc': '\\arccsc'
+    };
+    for (let key in invOps) {
+        let regex = new RegExp('\\\\mathrm\\{' + key + '\\}', 'g');
+        res = res.replace(regex, invOps[key]);
+    }
+    return res;
 }
 
 // Helper to preprocess Leibniz notations like (d^1y/dx^1) or d^1y/dx^1 to Y1
@@ -770,6 +888,27 @@ function katexFormat(input) {
     });
     let latex = latexParts.join(' = ');
 
+    // Post-process inverse trig and hyperbolic functions to superscript -1 notation
+    const invMap = {
+        'asin': '\\sin^{-1}',
+        'acos': '\\cos^{-1}',
+        'atan': '\\tan^{-1}',
+        'asec': '\\sec^{-1}',
+        'acsc': '\\csc^{-1}',
+        'acot': '\\cot^{-1}',
+        'asinh': '\\sinh^{-1}',
+        'acosh': '\\cosh^{-1}',
+        'atanh': '\\tanh^{-1}',
+        'asech': '\\mathrm{sech}^{-1}',
+        'acsch': '\\mathrm{csch}^{-1}',
+        'acoth': '\\coth^{-1}'
+    };
+    for (let key in invMap) {
+        let regex = new RegExp('\\\\mathrm\\{' + key + '\\}', 'g');
+        latex = latex.replace(regex, invMap[key]);
+    }
+
+
     // Replace Y1, Y2, etc. with proper LaTeX derivative notations
     latex = latex.replace(/Y_?\{?(\d+)\}?/g, (match, ord) => {
         if (ord === '1') {
@@ -779,7 +918,8 @@ function katexFormat(input) {
         }
     });
 
-    latex = replaceIntegrateWithInt(latex).replaceAll('\\mathrm{log}', '\\log');
+    latex = replaceIntegrateWithInt(latex);
+    latex = cleanLatexOperators(latex);
     latex = replaceLaplaceLaTeX(latex);
 
     // Post-process slash fractions and asterisks
@@ -808,6 +948,27 @@ function dxdykatexFormat(input) {
     });
     let latex = latexParts.join(' = ');
 
+    // Post-process inverse trig and hyperbolic functions to superscript -1 notation
+    const invMap = {
+        'asin': '\\sin^{-1}',
+        'acos': '\\cos^{-1}',
+        'atan': '\\tan^{-1}',
+        'asec': '\\sec^{-1}',
+        'acsc': '\\csc^{-1}',
+        'acot': '\\cot^{-1}',
+        'asinh': '\\sinh^{-1}',
+        'acosh': '\\cosh^{-1}',
+        'atanh': '\\tanh^{-1}',
+        'asech': '\\mathrm{sech}^{-1}',
+        'acsch': '\\mathrm{csch}^{-1}',
+        'acoth': '\\coth^{-1}'
+    };
+    for (let key in invMap) {
+        let regex = new RegExp('\\\\mathrm\\{' + key + '\\}', 'g');
+        latex = latex.replace(regex, invMap[key]);
+    }
+
+
     // Replace Y1, Y2, etc. with proper LaTeX swapped derivative notations
     latex = latex.replace(/Y_?\{?(\d+)\}?/g, (match, ord) => {
         if (ord === '1') {
@@ -817,7 +978,8 @@ function dxdykatexFormat(input) {
         }
     });
 
-    latex = replaceIntegrateWithInt(latex).replaceAll('\\mathrm{log}', '\\log');
+    latex = replaceIntegrateWithInt(latex);
+    latex = cleanLatexOperators(latex);
     latex = replaceLaplaceLaTeX(latex);
 
     console.log(`dxdykatexFormat(${input}): ${latex}`);
@@ -1429,11 +1591,15 @@ function translateBesselInput(str) {
 function getEquation() {
     if (typeof document === 'undefined') return;
     let userInput = document.getElementById("ode").value;
+    const icBraceRegex = /\{([^{};]+);\s*([a-zA-Z](?:'{1,3}|\(\d+\))?\([^)]+\))\}(?=\s*=)/g;
+    userInput = userInput.replace(icBraceRegex, '{$1}; $2');
+    userInput = translateLatexToNerdamer(userInput);
     userInput = translateBesselInput(userInput);
     userInput = preprocessLaplace(userInput);
 
     let originalUserInput = userInput;
-    let { depVar, indVar } = detectODEVariables(userInput);
+    let partsTempForVar = splitStatements(userInput);
+    let { depVar, indVar } = detectODEVariables(partsTempForVar[0] || userInput);
     let odesSwapped = false;
     if (depVar !== 'y' || indVar !== 'x') {
         odesSwapped = true;
@@ -1479,13 +1645,24 @@ function getEquation() {
     // Re-use mathBtn declared above
 
     // Check if it's a system of equations
-    let partsTemp = userInput.split(';').map(p => p.trim()).filter(Boolean);
+    let partsTemp = splitStatements(userInput);
     let isSystem = partsTemp.length > 1 && partsTemp.every(p => p.includes('='));
     if (isSystem) {
-        let hasDeriv = getODEOrder(partsTemp[0]) > 0;
-        let allCondsValid = partsTemp.slice(1).every(p => parseInitialCondition(p) !== null);
-        if (hasDeriv && allCondsValid) {
+        let allAssignments = partsTemp.every(p => {
+            let eqIdx = findTopLevelEquals(p);
+            if (eqIdx !== -1) {
+                let lhs = p.substring(0, eqIdx).trim();
+                return isValidVar(lhs);
+            }
+            return false;
+        });
+        if (allAssignments) {
             isSystem = false;
+        } else {
+            let hasDeriv = getODEOrder(partsTemp[0]) > 0;
+            if (hasDeriv) {
+                isSystem = false;
+            }
         }
     }
 
@@ -1505,7 +1682,8 @@ function getEquation() {
         solverInput = mathEl.value;
     }
 
-    if (hasLimit || isSystem || isPureExpression || (mathBtn && mathBtn.classList.contains('active'))) {
+    let hasDeriv = getODEOrder(userInput) > 0;
+    if (hasLimit || isSystem || isPureExpression || !hasDeriv || (mathBtn && mathBtn.classList.contains('active'))) {
         mathSolver(solverInput, rawDisplayInput);
         return;
     }
@@ -1561,9 +1739,9 @@ function getEquation() {
     //Removing all spaces from string
     userInput = userInput.split('').map(item => item.trim()).join('');
 
-    let parts = userInput.split(';').filter(Boolean);
+    let parts = splitStatements(userInput);
     let odeStr = parts[0];
-    let initialConds = parts.slice(1);
+    let initialConds = parts.slice(1).filter(p => parseInitialCondition(p) !== null);
     let solveIVP = false;
     let parsedConds = [];
     let order = 0;
@@ -1708,11 +1886,31 @@ function getEquation() {
             solution_arr = [firstODEsol];
         } else {
             solution_arr = [solvedY, ...steps, finalEquation];
+            if (particular_solution_step) {
+                if (particular_solution_step.includes('/') || particular_solution_step.includes('\\frac')) {
+                    let decimalSol = convertFractionsToDecimals(particular_solution_step);
+                    if (decimalSol !== particular_solution_step) {
+                        solution_arr.push(`\\text{Decimal solution: } ` + decimalSol);
+                    }
+                }
+            } else if (firstODEsol.includes('/') || firstODEsol.includes('\\frac')) {
+                let decimalSol = convertFractionsToDecimals(firstODEsol);
+                if (decimalSol !== firstODEsol) {
+                    solution_arr.push(`\\text{Decimal general solution: } ` + decimalSol);
+                }
+            }
         }
 
         let final_solution_arr = solution_arr.map(sol => {
+            if (typeof sol === 'string') {
+                sol = sol.replace(/const_e/g, 'e').replace(/const_\{e\}/g, 'e');
+            }
             let formatted_sol = sol;
-            if (xy_replaced == true) {
+            if (sol.startsWith('\\text{Decimal')) {
+                let prefix = sol.includes('general') ? '\\text{Decimal general solution: } ' : '\\text{Decimal solution: } ';
+                let rawEquation = sol.replace(/^\\text\{Decimal\s+(?:general\s+)?solution:\s*\}\s*/, "").trim();
+                formatted_sol = prefix + (xy_replaced ? dxdykatexFormat(rawEquation) : katexFormat(rawEquation));
+            } else if (xy_replaced == true) {
                 if (sol.startsWith('\\text{') || sol.includes('\\text{') || sol.startsWith('P(') || sol.startsWith('Q(')) {
                     formatted_sol = swapXY(simplifyFractionsInText(sol));
                 } else {
@@ -1728,6 +1926,7 @@ function getEquation() {
             if (odesSwapped) {
                 formatted_sol = swapODEVariables(formatted_sol, 'y', 'x', depVar, indVar);
             }
+            formatted_sol = cleanLatexOperators(formatted_sol);
             return formatted_sol;
         });
 
@@ -2761,7 +2960,7 @@ function translateLatexToNerdamer(latex) {
 
     // Clean empty/placeholder subscripts/superscripts (e.g. _{}, _{_}, _, ^{}, ^{_}, ^)
     latex = latex.replace(/([_^])\s*\{\s*(_)?\s*\}/g, '');
-    latex = latex.replace(/([_^])(?![a-zA-Z0-9{])/g, '');
+    latex = latex.replace(/([_^])(?![a-zA-Z0-9{([\\]|[-+])/g, '');
 
     latex = preprocessLaplace(latex);
 
@@ -4067,7 +4266,7 @@ function getTemplateAt(latex, i) {
     }
 
     // 12. Standard Functions: \sin, \cos, \tan, etc. (with optional power)
-    let funcMatch = latex.substring(i).match(/^\\(sin|cos|tan|sec|csc|cosec|cot|sinh|cosh|tanh|sech|csch|cosech|coth|ln|log|exp)(?:\^\{([^{}]*)\})?/);
+    let funcMatch = latex.substring(i).match(/^\\(sinh|cosh|tanh|sech|csch|cosech|coth|sin|cos|tan|sec|csc|cosec|cot|ln|log|exp)(?:\^\{([^{}]*)\})?/);
     if (funcMatch) {
         let fnName = funcMatch[1];
         let hasPower = funcMatch[2] !== undefined;
@@ -4175,6 +4374,16 @@ function getInnermostTemplatePart(latex, pos) {
         }
     }
     return { template: bestTemplate, partIndex: bestPartIndex };
+}
+
+function getOutermostTemplate(latex, pos) {
+    const templates = getAllTemplates(latex);
+    for (let t of templates) {
+        if (pos > t.start && pos < t.end) {
+            return t;
+        }
+    }
+    return null;
 }
 
 function isAllowed(latex, pos) {
@@ -5344,7 +5553,7 @@ function handleMathInput() {
     }
 
     // Auto-exit/morph trig^{-1} to place cursor inside argument
-    let trigInvMatch = textBefore.match(/\\(sin|cos|tan|sec|csc|cosec|cot|sinh|cosh|tanh|sech|csch|cosech|coth)\^\{(-1)$/);
+    let trigInvMatch = textBefore.match(/\\(sinh|cosh|tanh|sech|csch|cosech|coth|sin|cos|tan|sec|csc|cosec|cot)\^\{(-1)$/);
     if (!replaced && trigInvMatch) {
         let fnName = trigInvMatch[1];
         let textAfter = math.value.substring(pos);
@@ -5366,7 +5575,7 @@ function handleMathInput() {
     }
 
     // Auto-replace \sin{}^-1 or \sin{}^{-1} typed outside
-    let trigInvOutsideMatch = textBefore.match(/\\(sin|cos|tan|sec|csc|cosec|cot|sinh|cosh|tanh|sech|csch|cosech|coth)\{\}\^\{?-1\}?$/);
+    let trigInvOutsideMatch = textBefore.match(/\\(sinh|cosh|tanh|sech|csch|cosech|coth|sin|cos|tan|sec|csc|cosec|cot)\{\}\^\{?-1\}?$/);
     if (!replaced && trigInvOutsideMatch) {
         let fnName = trigInvOutsideMatch[1];
         let startIdx = pos - trigInvOutsideMatch[0].length;
@@ -5377,7 +5586,7 @@ function handleMathInput() {
     }
 
     // Exit power group for any character typed after a numeric or -1 power
-    let funcPowerExitAnyMatch = textBefore.match(/\\(sin|cos|tan|sinh|cosh|tanh|ln|log|exp|sec|csc|cosec|cot|sech|csch|cosech|coth)\^\{([a-zA-Z\d-]+)(.)$/);
+    let funcPowerExitAnyMatch = textBefore.match(/\\(sinh|cosh|tanh|sech|csch|cosech|coth|sin|cos|tan|ln|log|exp|sec|csc|cosec|cot)\^\{([a-zA-Z\d-]+)(.)$/);
     if (!replaced && funcPowerExitAnyMatch) {
         let fnName = funcPowerExitAnyMatch[1];
         let power = funcPowerExitAnyMatch[2];
@@ -5510,7 +5719,7 @@ function handleMathInput() {
         replaced = true;
     }
     // Function inline power morphing (e.g. \sin{^ -> \sin^{}{})
-    let funcPowerMatch = textBefore.match(/\\(sin|cos|tan|sinh|cosh|tanh|ln|log|exp|sec|csc|cosec|cot|sech|csch|cosech|coth)\{\^$/);
+    let funcPowerMatch = textBefore.match(/\\(sinh|cosh|tanh|sech|csch|cosech|coth|sin|cos|tan|ln|log|exp|sec|csc|cosec|cot)\{\^$/);
     if (!replaced && funcPowerMatch) {
         let fnName = funcPowerMatch[1];
         let textAfter = math.value.substring(pos);
@@ -5537,7 +5746,7 @@ function handleMathInput() {
     }
 
     // Function inline power morphing from outside (e.g. \sin{}^ -> \sin^{}{})
-    let funcPowerOutsideMatch = textBefore.match(/\\(sin|cos|tan|sinh|cosh|tanh|ln|log|exp|sec|csc|cosec|cot|sech|csch|cosech|coth)\{([^}]*)\}\^$/);
+    let funcPowerOutsideMatch = textBefore.match(/\\(sinh|cosh|tanh|sech|csch|cosech|coth|sin|cos|tan|ln|log|exp|sec|csc|cosec|cot)\{([^}]*)\}\^$/);
     if (!replaced && funcPowerOutsideMatch) {
         let fnName = funcPowerOutsideMatch[1];
         let argContent = funcPowerOutsideMatch[2];
@@ -5549,7 +5758,7 @@ function handleMathInput() {
     }
 
     // Parenthesized power morphing (e.g. \sin^{2(}{} -> \sin^{2}{(})
-    let funcPowerParenMatch = textBefore.match(/\\(sin|cos|tan|sinh|cosh|tanh|ln|log|exp|sec|csc|cosec|cot|sech|csch|cosech|coth)\^\{([^}]+)\($/);
+    let funcPowerParenMatch = textBefore.match(/\\(sinh|cosh|tanh|sech|csch|cosech|coth|sin|cos|tan|ln|log|exp|sec|csc|cosec|cot)\^\{([^}]+)\($/);
     if (!replaced && funcPowerParenMatch) {
         let fnName = funcPowerParenMatch[1];
         let power = funcPowerParenMatch[2];
@@ -5565,7 +5774,7 @@ function handleMathInput() {
 
     // Rule A: Exit power group when non-digit character typed after numeric power
     // e.g. typing 'x' in \sin^{2x}{} → restructures to \sin^{2}{x}
-    let funcPowerExitMatch = textBefore.match(/\\(sin|cos|tan|sinh|cosh|tanh|ln|log|exp|sec|csc|cosec|cot|sech|csch|cosech|coth)\^\{(\d+(?:\.\d*)?)([a-zA-Z])$/);
+    let funcPowerExitMatch = textBefore.match(/\\(sinh|cosh|tanh|sech|csch|cosech|coth|sin|cos|tan|ln|log|exp|sec|csc|cosec|cot)\^\{(\d+(?:\.\d*)?)([a-zA-Z])$/);
     if (!replaced && funcPowerExitMatch) {
         let fnName = funcPowerExitMatch[1];
         let power = funcPowerExitMatch[2];
@@ -5583,14 +5792,19 @@ function handleMathInput() {
 
     // Rule B: Exit argument group when operator typed inside function arg with power
     // e.g. typing '+' in \sin^{2}{x+} → moves operator outside: \sin^{2}{x}+
-    let funcPowerArgOpMatch = textBefore.match(/\\(sin|cos|tan|sinh|cosh|tanh|ln|log|exp|sec|csc|cosec|cot|sech|csch|cosech|coth)\^\{([^}]+)\}\{([^}]+)([+\-*/=])$/);
+    let funcPowerArgOpMatch = textBefore.match(/\\(sinh|cosh|tanh|sech|csch|cosech|coth|sin|cos|tan|ln|log|exp|sec|csc|cosec|cot)\^\{([^}]+)\}\{([^}]+)([+\-*/=;])$/);
     if (!replaced && funcPowerArgOpMatch) {
         let fnName = funcPowerArgOpMatch[1];
         let power = funcPowerArgOpMatch[2];
         let argContent = funcPowerArgOpMatch[3];
         let op = funcPowerArgOpMatch[4];
         let textAfter = math.value.substring(pos);
-        if (textAfter.startsWith('}') && !argContent.includes('\\')) {
+
+        let openCount = (argContent.match(/\(/g) || []).length;
+        let closeCount = (argContent.match(/\)/g) || []).length;
+        let hasUnclosedParen = openCount > closeCount || argContent.startsWith('(');
+
+        if (textAfter.startsWith('}') && !argContent.includes('\\') && !hasUnclosedParen) {
             let matchedStr = `\\${fnName}^{${power}}{${argContent}${op}`;
             let left = textBefore.substring(0, textBefore.length - matchedStr.length);
             let right = textAfter.substring(1);
@@ -5602,14 +5816,19 @@ function handleMathInput() {
 
     // Rule C: Exit argument group when operator typed inside function arg (no power)
     // e.g. typing '+' in \sin{x+} → moves operator outside: \sin{x}+
-    // Guard: skip if arg starts with '(' (user is building a parenthesised arg like sin(x+1))
-    let funcNoArgOpMatch = textBefore.match(/\\(sin|cos|tan|sinh|cosh|tanh|ln|log|exp|sec|csc|cosec|cot|sech|csch|cosech|coth)\{([^}]+)([+\-*/=])$/);
+    // Guard: skip if arg starts with '(' or contains unclosed parentheses (user is building a parenthesised arg like sin(x+1))
+    let funcNoArgOpMatch = textBefore.match(/\\(sinh|cosh|tanh|sech|csch|cosech|coth|sin|cos|tan|ln|log|exp|sec|csc|cosec|cot)\{([^}]+)([+\-*/=;])$/);
     if (!replaced && funcNoArgOpMatch) {
         let fnName = funcNoArgOpMatch[1];
         let argContent = funcNoArgOpMatch[2];
         let op = funcNoArgOpMatch[3];
         let textAfter = math.value.substring(pos);
-        if (textAfter.startsWith('}') && !argContent.startsWith('(') && !argContent.includes('\\')) {
+
+        let openCount = (argContent.match(/\(/g) || []).length;
+        let closeCount = (argContent.match(/\)/g) || []).length;
+        let hasUnclosedParen = openCount > closeCount || argContent.startsWith('(');
+
+        if (textAfter.startsWith('}') && !argContent.includes('\\') && !hasUnclosedParen) {
             let matchedStr = `\\${fnName}{${argContent}${op}`;
             let left = textBefore.substring(0, textBefore.length - matchedStr.length);
             let right = textAfter.substring(1);
@@ -5640,10 +5859,33 @@ function handleMathInput() {
             // Typing ')' to exit a group if followed by '}'
             let textAfter = math.value.substring(pos);
             if (textAfter.startsWith('}')) {
-                let left = textBefore.substring(0, textBefore.length - 1);
-                math.value = left + '}' + ')' + textAfter.substring(1);
-                newCursor = left.length + 2;
-                replaced = true;
+                let depth = 0;
+                let braceIdx = -1;
+                for (let i = pos - 1; i >= 0; i--) {
+                    if (math.value[i] === '}') depth++;
+                    else if (math.value[i] === '{') {
+                        if (depth > 0) depth--;
+                        else {
+                            braceIdx = i;
+                            break;
+                        }
+                    }
+                }
+                let hasUnclosedParenInsideBrace = false;
+                if (braceIdx !== -1) {
+                    let groupText = math.value.substring(braceIdx + 1, pos - 1);
+                    let openCount = (groupText.match(/\(/g) || []).length;
+                    let closeCount = (groupText.match(/\)/g) || []).length;
+                    if (openCount > closeCount) {
+                        hasUnclosedParenInsideBrace = true;
+                    }
+                }
+                if (!hasUnclosedParenInsideBrace) {
+                    let left = textBefore.substring(0, textBefore.length - 1);
+                    math.value = left + '}' + ')' + textAfter.substring(1);
+                    newCursor = left.length + 2;
+                    replaced = true;
+                }
             }
         }
     }
@@ -5705,7 +5947,79 @@ function handleMathInput() {
     }
 
     // Standard Math Functions Autocomplete
-    if (!replaced && textBefore.endsWith('sqrt')) {
+    if (!replaced && textBefore.endsWith('hypsin')) {
+        math.value = math.value.substring(0, pos - 6) + '\\sinh{}' + math.value.substring(pos);
+        newCursor = pos - 6 + 6;
+        replaced = true;
+    }
+    else if (!replaced && textBefore.endsWith('hypcos')) {
+        math.value = math.value.substring(0, pos - 6) + '\\cosh{}' + math.value.substring(pos);
+        newCursor = pos - 6 + 6;
+        replaced = true;
+    }
+    else if (!replaced && textBefore.endsWith('hyptan')) {
+        math.value = math.value.substring(0, pos - 6) + '\\tanh{}' + math.value.substring(pos);
+        newCursor = pos - 6 + 6;
+        replaced = true;
+    }
+    else if (!replaced && textBefore.endsWith('hypsec')) {
+        math.value = math.value.substring(0, pos - 6) + '\\sech{}' + math.value.substring(pos);
+        newCursor = pos - 6 + 6;
+        replaced = true;
+    }
+    else if (!replaced && textBefore.endsWith('hypcsc')) {
+        math.value = math.value.substring(0, pos - 6) + '\\csch{}' + math.value.substring(pos);
+        newCursor = pos - 6 + 6;
+        replaced = true;
+    }
+    else if (!replaced && textBefore.endsWith('hypcot')) {
+        math.value = math.value.substring(0, pos - 6) + '\\coth{}' + math.value.substring(pos);
+        newCursor = pos - 6 + 6;
+        replaced = true;
+    }
+    else if (!replaced && (textBefore.endsWith('\\sin{h') || textBefore.endsWith('\\sin{}h'))) {
+        let len = textBefore.endsWith('\\sin{h') ? 6 : 7;
+        math.value = math.value.substring(0, pos - len) + '\\sinh{}' + math.value.substring(pos);
+        newCursor = pos - len + 6;
+        replaced = true;
+    }
+    else if (!replaced && (textBefore.endsWith('\\cos{h') || textBefore.endsWith('\\cos{}h'))) {
+        let len = textBefore.endsWith('\\cos{h') ? 6 : 7;
+        math.value = math.value.substring(0, pos - len) + '\\cosh{}' + math.value.substring(pos);
+        newCursor = pos - len + 6;
+        replaced = true;
+    }
+    else if (!replaced && (textBefore.endsWith('\\tan{h') || textBefore.endsWith('\\tan{}h'))) {
+        let len = textBefore.endsWith('\\tan{h') ? 6 : 7;
+        math.value = math.value.substring(0, pos - len) + '\\tanh{}' + math.value.substring(pos);
+        newCursor = pos - len + 6;
+        replaced = true;
+    }
+    else if (!replaced && (textBefore.endsWith('\\sec{h') || textBefore.endsWith('\\sec{}h'))) {
+        let len = textBefore.endsWith('\\sec{h') ? 6 : 7;
+        math.value = math.value.substring(0, pos - len) + '\\sech{}' + math.value.substring(pos);
+        newCursor = pos - len + 6;
+        replaced = true;
+    }
+    else if (!replaced && (textBefore.endsWith('\\csc{h') || textBefore.endsWith('\\csc{}h'))) {
+        let len = textBefore.endsWith('\\csc{h') ? 6 : 7;
+        math.value = math.value.substring(0, pos - len) + '\\csch{}' + math.value.substring(pos);
+        newCursor = pos - len + 6;
+        replaced = true;
+    }
+    else if (!replaced && (textBefore.endsWith('\\cosec{h') || textBefore.endsWith('\\cosec{}h'))) {
+        let len = textBefore.endsWith('\\cosec{h') ? 8 : 9;
+        math.value = math.value.substring(0, pos - len) + '\\csch{}' + math.value.substring(pos);
+        newCursor = pos - len + 6;
+        replaced = true;
+    }
+    else if (!replaced && (textBefore.endsWith('\\cot{h') || textBefore.endsWith('\\cot{}h'))) {
+        let len = textBefore.endsWith('\\cot{h') ? 6 : 7;
+        math.value = math.value.substring(0, pos - len) + '\\coth{}' + math.value.substring(pos);
+        newCursor = pos - len + 6;
+        replaced = true;
+    }
+    else if (!replaced && textBefore.endsWith('sqrt')) {
         math.value = math.value.substring(0, pos - 4) + '\\sqrt{}' + math.value.substring(pos);
         newCursor = pos - 4 + 6;
         replaced = true;
@@ -6777,6 +7091,71 @@ if (typeof document !== 'undefined') {
                 onSelectionChange();
             });
             math.addEventListener('keydown', function (e) {
+                if (e.key === '{' || e.key === '}' || e.key === ')' || e.key === ',' || e.key === '&' || e.key === ';') {
+                    const pos = this.selectionStart;
+                    const val = this.value;
+                    if (e.key === ';') {
+                        const outermost = getOutermostTemplate(val, pos);
+                        if (outermost) {
+                            let jumpPos = outermost.end;
+                            this.setSelectionRange(jumpPos, jumpPos);
+                            onSelectionChange();
+                        }
+                    } else {
+                        const { template, partIndex } = getInnermostTemplatePart(val, pos);
+                        if (template && partIndex !== -1) {
+                            if (e.key === ',' && template.type === 'matrix') {
+                                // Allow comma inside matrix cells
+                            } else if (e.key === '&' && template.type === 'matrix') {
+                                // Allow & inside matrix cells
+                            } else if (e.key === ')') {
+                                // Typeover/jump-over support for closing parenthesis if the next character is already ')'
+                                if (val[pos] === ')') {
+                                    e.preventDefault();
+                                    this.setSelectionRange(pos + 1, pos + 1);
+                                    onSelectionChange();
+                                }
+                            } else if (e.key === '{') {
+                                e.preventDefault();
+                                const before = val.substring(0, pos);
+                                const after = val.substring(this.selectionEnd);
+                                this.value = before + '(' + after;
+                                this.setSelectionRange(pos + 1, pos + 1);
+                                this.dispatchEvent(new Event('input'));
+                            } else if (e.key === '}') {
+                                let part = template.parts[partIndex];
+                                let partText = val.substring(part.start, pos);
+                                let openCount = (partText.match(/\(/g) || []).length;
+                                let closeCount = (partText.match(/\)/g) || []).length;
+                                if (openCount > closeCount) {
+                                    e.preventDefault();
+                                    const before = val.substring(0, pos);
+                                    const after = val.substring(this.selectionEnd);
+                                    this.value = before + ')' + after;
+                                    this.setSelectionRange(pos + 1, pos + 1);
+                                    this.dispatchEvent(new Event('input'));
+                                } else {
+                                    // All parentheses inside are closed. Jump past the closing brace '}' of the part.
+                                    e.preventDefault();
+                                    let jumpPos = part.end + 1;
+                                    if (jumpPos <= val.length) {
+                                        this.setSelectionRange(jumpPos, jumpPos);
+                                        onSelectionChange();
+                                    }
+                                }
+                            } else if (e.key === '&') {
+                                e.preventDefault();
+                                const before = val.substring(0, pos);
+                                const after = val.substring(this.selectionEnd);
+                                this.value = before + 'and' + after;
+                                this.setSelectionRange(pos + 3, pos + 3);
+                                this.dispatchEvent(new Event('input'));
+                            } else {
+                                // Let comma be typed normally inside templates
+                            }
+                        }
+                    }
+                }
                 // Custom Undo/Redo Handler
                 if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
                     e.preventDefault();
@@ -8105,6 +8484,16 @@ function getDecimalValue(exprStr) {
 function formatRawMathToLaTeX(str) {
     if (!str) return "";
 
+    if (!str.includes('\\') && !str.includes('{') && !str.includes('}')) {
+        try {
+            if (!str.includes('secondroot') && !str.includes('cuberoot') && !str.includes('fourthroot') && !str.includes('fifthroot') && !str.includes('sixthroot') && !str.includes('seventhroot') && !str.includes('eighthroot') && !str.includes('ninthroot') && !str.includes('tenthroot')) {
+                return nerdamer(str).toTeX();
+            }
+        } catch (e) {
+            // fallback to manual regex conversions
+        }
+    }
+
     let res = str;
 
     // ── Early word substitutions (bare keywords, no parentheses needed) ──
@@ -8342,6 +8731,9 @@ function formatRawMathToLaTeX(str) {
             // Keep as is
         }
     }
+
+    // Convert any remaining standalone 'pi' to LaTeX '\pi'
+    res = res.replace(/([^\\]|^)\bpi\b/g, '$1\\pi');
 
     return res;
 }
@@ -8950,6 +9342,43 @@ function simplifyBinomialFractions(str) {
     return result;
 }
 
+function convertFractionsToDecimals(str) {
+    if (!str || typeof str !== 'string') return str;
+
+    // Match standard fractions like 33/20 or -33/20
+    let res = str.replace(/\b(\d+)\/(\d+)\b/g, (match, numStr, denStr) => {
+        let num = parseInt(numStr);
+        let den = parseInt(denStr);
+        if (den === 0) return match;
+        let val = num / den;
+        if (Math.abs(val - Math.round(val)) < 1e-9) {
+            return Math.round(val).toString();
+        }
+        let decStr = val.toFixed(4);
+        decStr = decStr.replace(/\.?0+$/, "");
+        return decStr;
+    });
+
+    // Also match LaTeX fractions: \frac{33}{20} or \frac{-33}{20}
+    res = res.replace(/\\frac\{\s*(-?\d+)\s*\}\{\s*(-?\d+)\s*\}/g, (match, numStr, denStr) => {
+        let num = parseInt(numStr);
+        let den = parseInt(denStr);
+        if (den === 0) return match;
+        let val = num / den;
+        if (Math.abs(val - Math.round(val)) < 1e-9) {
+            return Math.round(val).toString();
+        }
+        let decStr = val.toFixed(4);
+        decStr = decStr.replace(/\.?0+$/, "");
+        return decStr;
+    });
+
+    // Clean up parenthesized numbers like (1.65) -> 1.65, avoiding function arguments like sqrt(2) or cos(-1)
+    res = res.replace(/(?<![a-zA-Z])\(([-+]?\d+(?:\.\d+)?)\)/g, '$1');
+
+    return res;
+}
+
 function simplifyFractionsInText(str) {
     if (!str || typeof str !== 'string') return str;
 
@@ -9164,7 +9593,8 @@ function preprocessBracketMatrices(str) {
     let res = "";
     let i = 0;
     while (i < str.length) {
-        if (str[i] === '[' && str[i + 1] === '[') {
+        let spaceMatch = str.substring(i + 1).match(/^\s*\[/);
+        if (str[i] === '[' && spaceMatch) {
             let depth = 1;
             let j = i + 1;
             while (j < str.length && depth > 0) {
@@ -9207,7 +9637,8 @@ function convertBracketMatrixToLatex(str) {
     let res = "";
     let i = 0;
     while (i < str.length) {
-        if (str[i] === '[' && str[i + 1] === '[') {
+        let spaceMatch = str.substring(i + 1).match(/^\s*\[/);
+        if (str[i] === '[' && spaceMatch) {
             let depth = 1;
             let j = i + 1;
             while (j < str.length && depth > 0) {
@@ -9530,22 +9961,65 @@ function solveTrigEquationGeneral(eq, varName = 'x') {
 }
 
 function formatGeneralSolutionLaTeX(s) {
+    // Strip all whitespaces to normalize matching
+    s = s.replace(/\s+/g, '');
+
     s = s.replace(/2\*k\*pi/g, '2k\\pi')
         .replace(/k\*pi/g, 'k\\pi')
-        .replace(/\bpi\b/g, '\\pi');
+        .replace(/([^\\]|^)\bpi\b/g, '$1\\pi');
 
     s = s.replace(/(\d+)\*\\pi\/(\d+)/g, '\\frac{$1\\pi}{$2}')
         .replace(/\\pi\/(\d+)/g, '\\frac{\\pi}{$1}')
         .replace(/(\d+)\*\\pi/g, '$1\\pi');
 
-    s = s.replace(/\*/g, ' ');
+    s = s.replace(/\*/g, ' ')
+        .replace(/\+/g, ' + ')
+        .replace(/-/g, ' - ');
     return s;
+}
+
+function preprocessStatement(stmt, isMathActive) {
+    let processed = stmt.trim();
+    processed = preprocessBracketMatrices(processed);
+    processed = preprocessMatrixOperators(processed);
+    processed = wrapMatrixMultiplication(processed);
+
+    if (isMathActive) {
+        processed = translateLatexToNerdamer(processed);
+    } else {
+        // If not LaTeX mode, translate \lvert ... \rvert to abs(...)
+        while (processed.includes('\\lvert')) {
+            let nextL = processed.lastIndexOf('\\lvert');
+            let nextR = processed.indexOf('\\rvert', nextL);
+            if (nextR !== -1) {
+                let before = processed.substring(0, nextL);
+                let inner = processed.substring(nextL + 6, nextR);
+                let after = processed.substring(nextR + 6);
+                processed = before + 'abs(' + inner + ')' + after;
+            } else {
+                break;
+            }
+        }
+        processed = preprocessLaplace(processed);
+    }
+
+    processed = convertLeibnizToDiff(processed);
+    processed = preprocessTrigPowers(processed);
+    processed = insertImplicitStars(processed);
+    processed = replaceNrtWithExponent(preprocessCustomRoots(replaceDiffsWithProductRule(processed)));
+    processed = processed.replaceAll('pdiff(', 'diff(');
+
+    return processed;
 }
 
 function mathSolver(user_input, rawDisplayInput = "") {
     user_input = preprocessTrigArgsWithoutParentheses(user_input);
     if (rawDisplayInput) {
         rawDisplayInput = preprocessTrigArgsWithoutParentheses(rawDisplayInput);
+    }
+
+    if (typeof nerdamer !== 'undefined' && typeof nerdamer.clearVars === 'function') {
+        nerdamer.clearVars();
     }
 
     if (typeof window !== 'undefined') {
@@ -9606,7 +10080,6 @@ function mathSolver(user_input, rawDisplayInput = "") {
     }
 
     let trimmedInput = user_input.trim();
-    // Interpret <=, >=, approx= as = for calculations
     trimmedInput = trimmedInput.replace(/<=/g, '=')
         .replace(/>=/g, '=')
         .replace(/approx=/g, '=');
@@ -9614,26 +10087,6 @@ function mathSolver(user_input, rawDisplayInput = "") {
         const p = document.createElement('p');
         p.innerText = "Please enter an expression.";
         solId.appendChild(p);
-        return;
-    }
-
-    // Check if it's a system of equations
-    let equations = trimmedInput.split(';').map(e => e.trim()).filter(Boolean);
-    if (equations.length > 1 && equations.every(eq => eq.includes('='))) {
-        let eqLaTeXs;
-        let isMathActive = false;
-        if (typeof document !== 'undefined') {
-            const mathEl = document.getElementById('math');
-            if (mathEl && mathEl.style.display !== 'none') {
-                isMathActive = true;
-            }
-        }
-        if (isMathActive && rawDisplayInput) {
-            eqLaTeXs = rawDisplayInput.split(';').map(eq => eq.trim()).filter(Boolean);
-        } else {
-            eqLaTeXs = equations.map(eq => formatRawMathToLaTeX(eq));
-        }
-        solveSystemOfEquations(equations, eqLaTeXs);
         return;
     }
 
@@ -9645,489 +10098,542 @@ function mathSolver(user_input, rawDisplayInput = "") {
         }
     }
 
-    // Preprocess bracket matrices and wrap matrix multiplication first
-    trimmedInput = preprocessBracketMatrices(trimmedInput);
-    trimmedInput = preprocessMatrixOperators(trimmedInput);
-    trimmedInput = wrapMatrixMultiplication(trimmedInput);
+    let statements = splitStatements(trimmedInput);
+    let rawInputForSplit = rawDisplayInput || user_input;
+    let rawStatements = splitStatements(rawInputForSplit);
 
-    let processedInput = trimmedInput;
-    if (isMathActive) {
-        processedInput = translateLatexToNerdamer(processedInput);
-    } else {
-        // If not LaTeX mode, translate \lvert ... \rvert to abs(...)
-        while (processedInput.includes('\\lvert')) {
-            let nextL = processedInput.lastIndexOf('\\lvert');
-            let nextR = processedInput.indexOf('\\rvert', nextL);
-            if (nextR !== -1) {
-                let before = processedInput.substring(0, nextL);
-                let inner = processedInput.substring(nextL + 6, nextR);
-                let after = processedInput.substring(nextR + 6);
-                processedInput = before + 'abs(' + inner + ')' + after;
-            } else {
-                break;
+    let assignments = [];
+    let nonAssignments = [];
+
+    for (let k = 0; k < statements.length; k++) {
+        let stmt = statements[k];
+        let rawStmt = rawStatements[k] || stmt;
+
+        let eqIdx = findTopLevelEquals(stmt);
+        let isAssignment = false;
+        if (eqIdx !== -1) {
+            let lhs = stmt.substring(0, eqIdx).trim();
+            if (isValidVar(lhs)) {
+                isAssignment = true;
             }
         }
-        processedInput = preprocessLaplace(processedInput);
-    }
 
-    processedInput = convertLeibnizToDiff(processedInput);
-    processedInput = preprocessTrigPowers(processedInput);
-    processedInput = insertImplicitStars(processedInput);
-    processedInput = replaceNrtWithExponent(preprocessCustomRoots(replaceDiffsWithProductRule(processedInput)));
-    processedInput = processedInput.replaceAll('pdiff(', 'diff(');
-
-    let displayLaTeX = "";
-    if (isMathActive && rawDisplayInput) {
-        displayLaTeX = convertBracketMatrixToLatex(rawDisplayInput);
-    } else {
-        let inputForLatex = rawDisplayInput || user_input;
-        inputForLatex = convertBracketMatrixToLatex(inputForLatex);
-        displayLaTeX = formatRawMathToLaTeX(preprocessTrigPowers(convertLeibnizToDiff(inputForLatex)));
+        if (isAssignment) {
+            assignments.push({ stmt, rawStmt, index: k });
+        } else {
+            nonAssignments.push({ stmt, rawStmt, index: k });
+        }
     }
 
     try {
-        if (processedInput.includes('=')) {
-            let parts = processedInput.split('=');
-            let lhs = parts[0].trim();
-            let rhs = parts[1].trim();
+        // 1. Process and evaluate all assignments first
+        for (let item of assignments) {
+            let stmt = item.stmt;
+            let rawStmt = item.rawStmt;
+            let k = item.index;
 
-            // Standardize equation to LHS - (RHS) = 0
-            let eq = `(${lhs}) - (${rhs})`;
+            let eqIdx = findTopLevelEquals(stmt);
+            let lhs = stmt.substring(0, eqIdx).trim();
+            let rhs = stmt.substring(eqIdx + 1).trim();
 
-            // Render original equation
-            const pEq = document.createElement('p');
-            renderKatex(`\\text{Equation: } ${displayLaTeX}`, pEq, { throwOnError: false });
-            solId.appendChild(pEq);
-
-            // Determine solved variable
-            let vars = nerdamer(eq).variables();
-            let varName = vars.includes('x') ? 'x' : (vars.includes('y') ? 'y' : (vars[0] || 'x'));
-
-            let isTrig = /\b(sin|cos|tan|sec|csc|cot)\b/i.test(eq);
-            let trigSols = null;
-            if (isTrig) {
-                trigSols = solveTrigEquationGeneral(eq, varName);
-            }
-
-            if (trigSols && trigSols.length > 0) {
-                const pSol = document.createElement('p');
-                let formattedSols = trigSols.map(formatGeneralSolutionLaTeX);
-                let solLaTeX = formattedSols.join(',\\quad ') + ',\\quad k \\in \\mathbb{Z}';
-                renderKatex(`${varName} = ${solLaTeX}`, pSol, { throwOnError: false });
-                solId.appendChild(pSol);
-                if (typeof window !== 'undefined') {
-                    window.mathSolverLastSolution = `${varName} = ${solLaTeX}`;
-                }
-                saveSolutionToHistory(user_input, `${varName} = ${solLaTeX}`);
-            } else {
-                // Solve equation
-                let solutions;
+            let processedRhs = preprocessStatement(rhs, isMathActive);
+            let val = nerdamer(processedRhs);
+            let valEval = val;
+            const _core = (typeof nerdamer !== 'undefined' && nerdamer.getCore) ? nerdamer.getCore() : null;
+            let isMatrixOrVector = _core && (val.symbol instanceof _core.Matrix || val.symbol instanceof _core.Vector);
+            try {
+                valEval = isMatrixOrVector ? val : val.evaluate();
+            } catch (e) {
                 try {
-                    solutions = nerdamer("roots(" + eq + ")");
-                } catch (e) {
-                    solutions = nerdamer("solve(" + eq + ", " + varName + ")");
-                }
-
-                // Render solutions
-                const pSol = document.createElement('p');
-                let solList = [];
-                if (solutions.symbol && solutions.symbol.elements) {
-                    solList = solutions.symbol.elements;
-                } else if (solutions) {
-                    solList = Array.isArray(solutions) ? solutions : [solutions];
-                }
-
-                let hasApprox = false;
-                let formattedSols = solList.map(el => {
-                    let str = el.toString();
-                    let latex = simplifyFractionsInText(katexFormat(simplifyFractionsInText(str)));
-                    let dec = getDecimalValue(str);
-                    if (dec && dec !== str && isMessySolution(str)) {
-                        hasApprox = true;
-                        return formatDecimalStringToLaTeX(dec);
-                    }
-                    return latex;
-                });
-
-                let solLaTeX = "";
-                if (solList.length === 0) {
-                    solLaTeX = "[]";
-                } else {
-                    solLaTeX = formattedSols.join(', ');
-                }
-                let relation = hasApprox ? "\\approx" : "=";
-                renderKatex(`${varName} ${relation} ${solLaTeX}`, pSol, { throwOnError: false });
-                solId.appendChild(pSol);
-                if (typeof window !== 'undefined') {
-                    window.mathSolverLastSolution = `${varName} ${relation} ${solLaTeX}`;
-                }
-                saveSolutionToHistory(user_input, `${varName} ${relation} ${solLaTeX}`);
+                    valEval = val.simplify();
+                } catch (e2) { }
             }
-        } else {
-            // Check if it is a custom matrix/vector function to intercept and format beautifully
-            let matrixOpMatch = processedInput.match(/^(eigenvalues|eigenvectors|rref|basis|multiply)\(([\s\S]+)\)$/i);
-            if (matrixOpMatch) {
-                let func = matrixOpMatch[1].toLowerCase();
-                // For 'multiply', parse the two matrix args ourselves
-                // to avoid nerdamer failing when the return value is a Matrix
-                if (func === 'multiply') {
+            nerdamer.setVar(lhs, valEval);
+
+            let lhsLatex = "";
+            if (isMathActive && rawStmt) {
+                let rawEqIdx = findTopLevelEquals(rawStmt);
+                if (rawEqIdx !== -1) {
+                    lhsLatex = convertBracketMatrixToLatex(rawStmt.substring(0, rawEqIdx).trim());
+                }
+            }
+            if (!lhsLatex) {
+                lhsLatex = formatRawMathToLaTeX(lhs);
+            }
+
+            let rhsLatex = "";
+            if (_core && valEval.symbol instanceof _core.Matrix) {
+                rhsLatex = formatNerdamerMatrixToBMatrix(valEval.symbol);
+            } else if (_core && valEval.symbol instanceof _core.Vector) {
+                let cols = valEval.symbol.elements.map(x => nerdamer(x).toTeX());
+                rhsLatex = `\\begin{bmatrix}` + cols.join(' & ') + `\\end{bmatrix}`;
+            } else {
+                rhsLatex = katexFormat(simplifyFractionsInText(valEval.toString()));
+            }
+
+            let assignmentLatex = `${lhsLatex} = ${rhsLatex}`;
+            const pAssign = document.createElement('p');
+            renderKatex(assignmentLatex, pAssign, { throwOnError: false });
+            solId.appendChild(pAssign);
+
+            if (k === statements.length - 1) {
+                if (typeof window !== 'undefined') {
+                    window.mathSolverLastSolution = assignmentLatex;
+                }
+                saveSolutionToHistory(user_input, assignmentLatex);
+            }
+        }
+
+        // 2. If remaining non-assignments form a system of equations, solve them as a system
+        let isSystemOfEquations = nonAssignments.length > 1 && nonAssignments.every(item => item.stmt.includes('='));
+        if (isSystemOfEquations) {
+            let eqLaTeXs;
+            if (isMathActive && rawDisplayInput) {
+                eqLaTeXs = nonAssignments.map(item => convertBracketMatrixToLatex(item.rawStmt));
+            } else {
+                eqLaTeXs = nonAssignments.map(item => formatRawMathToLaTeX(item.stmt));
+            }
+            let processedEquations = nonAssignments.map(item => preprocessStatement(item.stmt, isMathActive));
+            solveSystemOfEquations(processedEquations, eqLaTeXs);
+            return;
+        }
+
+        // 3. Otherwise, execute remaining non-assignments one by one in the standard loop
+        for (let item of nonAssignments) {
+            let stmt = item.stmt;
+            let rawStmt = item.rawStmt;
+            let k = item.index;
+
+            let stmtDisplayLaTeX = "";
+            if (isMathActive && rawStmt) {
+                stmtDisplayLaTeX = convertBracketMatrixToLatex(rawStmt);
+            } else {
+                let inputForLatex = rawStmt;
+                inputForLatex = convertBracketMatrixToLatex(inputForLatex);
+                stmtDisplayLaTeX = formatRawMathToLaTeX(preprocessTrigPowers(convertLeibnizToDiff(inputForLatex)));
+            }
+
+            let processedStmt = preprocessStatement(stmt, isMathActive);
+
+            if (processedStmt.includes('=')) {
+                let parts = processedStmt.split('=');
+                let lhs = parts[0].trim();
+                let rhs = parts[1].trim();
+
+                let eq = `(${lhs}) - (${rhs})`;
+
+                const pEq = document.createElement('p');
+                renderKatex(`\\text{Equation: } ${stmtDisplayLaTeX}`, pEq, { throwOnError: false });
+                solId.appendChild(pEq);
+
+                let vars = nerdamer(eq).variables();
+                let varName = vars.includes('x') ? 'x' : (vars.includes('y') ? 'y' : (vars[0] || 'x'));
+
+                let isTrig = /\b(sin|cos|tan|sec|csc|cot)\b/i.test(nerdamer(eq).toString());
+                let trigSols = null;
+                if (isTrig) {
+                    trigSols = solveTrigEquationGeneral(eq, varName);
+                }
+
+                if (trigSols && trigSols.length > 0) {
+                    const pSol = document.createElement('p');
+                    let formattedSols = trigSols.map(formatGeneralSolutionLaTeX);
+                    let solLaTeX = formattedSols.join(',\\quad ') + ',\\quad k \\in \\mathbb{Z}';
+                    renderKatex(`${varName} = ${solLaTeX}`, pSol, { throwOnError: false });
+                    solId.appendChild(pSol);
+                    if (k === statements.length - 1 && typeof window !== 'undefined') {
+                        window.mathSolverLastSolution = `${varName} = ${solLaTeX}`;
+                    }
+                    if (k === statements.length - 1) {
+                        saveSolutionToHistory(user_input, `${varName} = ${solLaTeX}`);
+                    }
+                } else {
+                    let solutions;
                     try {
-                        // Split the two top-level arguments of multiply(A, B)
-                        let innerStr = matrixOpMatch[2].trim();
-                        // Walk through to find the comma that separates the two top-level args
-                        let depth2 = 0, splitIdx = -1;
-                        for (let ci = 0; ci < innerStr.length; ci++) {
-                            if (innerStr[ci] === '(' || innerStr[ci] === '[') depth2++;
-                            else if (innerStr[ci] === ')' || innerStr[ci] === ']') depth2--;
-                            else if (innerStr[ci] === ',' && depth2 === 0) { splitIdx = ci; break; }
+                        solutions = nerdamer("roots(" + eq + ")");
+                    } catch (e) {
+                        solutions = nerdamer("solve(" + eq + ", " + varName + ")");
+                    }
+
+                    const pSol = document.createElement('p');
+                    let solList = [];
+                    if (solutions.symbol && solutions.symbol.elements) {
+                        solList = solutions.symbol.elements;
+                    } else if (solutions) {
+                        solList = Array.isArray(solutions) ? solutions : [solutions];
+                    }
+
+                    let hasApprox = false;
+                    let formattedSols = solList.map(el => {
+                        let str = el.toString();
+                        let latex = simplifyFractionsInText(katexFormat(simplifyFractionsInText(str)));
+                        let dec = getDecimalValue(str);
+                        if (dec && dec !== str && isMessySolution(str)) {
+                            hasApprox = true;
+                            return formatDecimalStringToLaTeX(dec);
                         }
-                        if (splitIdx === -1) throw new Error('multiply() requires two arguments');
-                        let argA = innerStr.slice(0, splitIdx).trim();
-                        let argB = innerStr.slice(splitIdx + 1).trim();
+                        return latex;
+                    });
 
-                        const core = nerdamer.getCore();
-                        let MA_expr = nerdamer(argA);
-                        let MB_expr = nerdamer(argB);
-                        if (!(MA_expr.symbol instanceof core.Matrix)) throw new Error('First argument of multiply() must be a matrix');
-                        if (!(MB_expr.symbol instanceof core.Matrix)) throw new Error('Second argument of multiply() must be a matrix');
-
-                        let MA = MA_expr.symbol, MB = MB_expr.symbol;
-                        let rowsA = MA.rows(), colsA = MA.cols();
-                        let rowsB = MB.rows(), colsB = MB.cols();
-                        if (colsA !== rowsB) throw new Error(`Matrix dimensions incompatible for multiplication: (${rowsA}\u00d7${colsA}) \u00b7 (${rowsB}\u00d7${colsB})`);
-
-                        // Compute result matrix: C[i][j] = sum_k A[i][k] * B[k][j]
-                        let result = [];
-                        for (let i = 0; i < rowsA; i++) {
-                            let row = [];
-                            for (let j = 0; j < colsB; j++) {
-                                let cell = nerdamer('0').symbol;
-                                for (let k = 0; k < colsA; k++) {
-                                    let prod = core.PARSER.multiply(MA.get(i, k), MB.get(k, j));
-                                    cell = core.PARSER.add(cell, prod);
-                                }
-                                row.push(cell);
-                            }
-                            result.push(row);
-                        }
-                        let resultMatrix = new core.Matrix(...result);
-                        let resultLaTeX = formatNerdamerMatrixToBMatrix(resultMatrix);
-
-                        const pIn2 = document.createElement('p');
-                        renderKatex(`\\text{Input: } ${displayLaTeX}`, pIn2, { throwOnError: false });
-                        solId.appendChild(pIn2);
-
-                        const pOut2 = document.createElement('p');
-                        renderKatex(`\\text{Result: } ${resultLaTeX}`, pOut2, { throwOnError: false });
-                        solId.appendChild(pOut2);
-
-                        if (typeof window !== 'undefined') window.mathSolverLastSolution = resultLaTeX;
-                        saveSolutionToHistory(user_input, resultLaTeX);
-
-                        if (typeof document !== 'undefined') {
-                            const mathEl2 = document.getElementById('math');
-                            if (mathEl2) {
-                                if (typeof window !== 'undefined') window._mathSolveJustRan = true;
-                                resizeTextarea(mathEl2);
-                                updateMathOverlay();
-                            }
-                        }
-                        return;
-                    } catch (err2) {
-                        console.error('Error in multiply():', err2);
-                        const pErr2 = document.createElement('p');
-                        pErr2.innerText = `Error: ${err2.message}`;
-                        solId.appendChild(pErr2);
-                        return;
+                    let solLaTeX = "";
+                    if (solList.length === 0) {
+                        solLaTeX = "[]";
+                    } else {
+                        solLaTeX = formattedSols.join(', ');
+                    }
+                    let relation = hasApprox ? "\\approx" : "=";
+                    renderKatex(`${varName} ${relation} ${solLaTeX}`, pSol, { throwOnError: false });
+                    solId.appendChild(pSol);
+                    if (k === statements.length - 1 && typeof window !== 'undefined') {
+                        window.mathSolverLastSolution = `${varName} ${relation} ${solLaTeX}`;
+                    }
+                    if (k === statements.length - 1) {
+                        saveSolutionToHistory(user_input, `${varName} ${relation} ${solLaTeX}`);
                     }
                 }
-
-                let func2 = func; // for the block below
-                let argStr = matrixOpMatch[2].trim();
-
-                try {
-                    let M_expr = nerdamer(argStr);
-                    const core = nerdamer.getCore();
-                    if (!(M_expr.symbol instanceof core.Matrix)) {
-                        throw new Error(`Argument to ${func2}() must evaluate to a matrix.`);
-                    }
-
-                    const pIn = document.createElement('p');
-                    renderKatex(`\\text{Input: } ${displayLaTeX}`, pIn, { throwOnError: false });
-                    solId.appendChild(pIn);
-
-                    const pOut = document.createElement('p');
-                    let resultLaTeX = "";
-
-                    if (func === 'eigenvalues') {
-                        let evsExpr = calculateEigenvalues(M_expr.symbol);
-                        let evsList = [];
-                        if (evsExpr.symbol && evsExpr.symbol.elements) {
-                            evsList = evsExpr.symbol.elements.map(el => el.toString());
-                        } else {
-                            let str = evsExpr.toString();
-                            evsList = str[0] === '[' ? str.slice(1, -1).split(',') : [str];
-                        }
-                        evsList = evsList.map(ev => ev.trim()).filter(ev => ev !== '');
-                        let uniqueEvs = [];
-                        for (let ev of evsList) {
-                            let cleaned = cleanNumericalValue(ev).toString();
-                            if (!uniqueEvs.includes(cleaned)) {
-                                uniqueEvs.push(cleaned);
-                            }
-                        }
-                        let tevs = uniqueEvs.map(ev => formatComplexTeX(ev));
-                        resultLaTeX = `\\lambda = ` + tevs.join(', ');
-                    } else if (func === 'eigenvectors') {
-                        let evecs = calculateEigenvectors(M_expr.symbol);
-                        resultLaTeX = `\\text{Eigenvalues and Eigenvectors: } \\\\ ` + formatEigenvectorsLaTeX(evecs);
-                    } else if (func === 'rref') {
-                        let arr = parseNerdamerMatrix(M_expr.symbol);
-                        let rrefArr = rrefSymbolic(arr);
-                        let rrefMatrix = new core.Matrix(...rrefArr.map(row => row.map(x => x.symbol)));
-                        resultLaTeX = `\\text{RREF} = ` + formatNerdamerMatrixToBMatrix(rrefMatrix);
-                    } else if (func === 'basis') {
-                        let arr = parseNerdamerMatrix(M_expr.symbol);
-                        let numRows = arr.length;
-                        let numCols = arr[0].length;
-                        let R = rrefSymbolic(arr);
-                        let pivotCols = [];
-                        for (let r = 0; r < numRows; r++) {
-                            let p = -1;
-                            for (let c = 0; c < numCols; c++) {
-                                if (nerdamer(R[r][c]).simplify().toString() !== '0') {
-                                    p = c;
-                                    break;
-                                }
-                            }
-                            if (p !== -1) pivotCols.push(p);
-                        }
-                        let basisLaTeXs = [];
-                        for (let c of pivotCols) {
-                            let colVec = [];
-                            for (let r = 0; r < numRows; r++) {
-                                colVec.push(nerdamer(arr[r][c]).toTeX());
-                            }
-                            basisLaTeXs.push(`\\begin{bmatrix} ${colVec.join(' \\\\ ')} \\end{bmatrix}`);
-                        }
-                        resultLaTeX = `\\text{Basis columns: } \\left\\{ ${basisLaTeXs.join(', ')} \\right\\}`;
-                    }
-
-                    renderKatex(resultLaTeX, pOut, { throwOnError: false });
-                    solId.appendChild(pOut);
-
-                    if (typeof window !== 'undefined') {
-                        window.mathSolverLastSolution = resultLaTeX;
-                    }
-                    saveSolutionToHistory(user_input, resultLaTeX);
-
-                    if (typeof document !== 'undefined') {
-                        const mathEl = document.getElementById("math");
-                        if (mathEl) {
-                            if (typeof window !== 'undefined') window._mathSolveJustRan = true;
-                            resizeTextarea(mathEl);
-                            updateMathOverlay();
-                        }
-                    }
-                    return;
-                } catch (err) {
-                    console.error("Error in custom matrix op:", err);
-                    const pErr = document.createElement('p');
-                    pErr.innerText = `Error: ${err.message}`;
-                    solId.appendChild(pErr);
-                    return;
-                }
-            }
-
-            let expr = nerdamer(processedInput);
-
-            const pIn = document.createElement('p');
-            renderKatex(`\\text{Input: } ${displayLaTeX}`, pIn, { throwOnError: false });
-            solId.appendChild(pIn);
-
-            const pOut = document.createElement('p');
-            let resultLaTeX = '';
-
-            let parsedCF = formatContinuedFractionLaTeX(expr.toString());
-            if (parsedCF !== null) {
-                resultLaTeX = `\\text{Result: } ${parsedCF}`;
             } else {
-                // Check if result is a Matrix (e.g. from multiply(), rref(), etc.)
-                // Matrix objects don't have .text() or .simplify(), so handle separately.
-                const _core = (typeof nerdamer !== 'undefined' && nerdamer.getCore) ? nerdamer.getCore() : null;
-                let isRootFinding = /\b(solve|roots|nroots)\b/i.test(processedInput);
-                if (_core && expr.symbol instanceof _core.Matrix) {
-                    resultLaTeX = `\\text{Result: } ` + formatNerdamerMatrixToBMatrix(expr.symbol);
-                } else if (_core && expr.symbol instanceof _core.Vector && !isRootFinding) {
-                    let cols = expr.symbol.elements.map(x => nerdamer(x).toTeX());
-                    resultLaTeX = `\\text{Result: } \\begin{bmatrix}` + cols.join(' & ') + `\\end{bmatrix}`;
-                } else if (expr.symbol && expr.symbol.constructor.name === 'Collection' && expr.symbol.elements && expr.symbol.elements.length === 3 && ['eq', 'lt', 'gt', 'lte', 'gte'].includes(expr.symbol.elements[2].toString())) {
-                    // Handle Relational Operations
-                    let elements = expr.symbol.elements;
-                    let left = elements[0];
-                    let right = elements[1];
-                    let op = elements[2].toString();
+                let matrixOpMatch = processedStmt.match(/^(eigenvalues|eigenvectors|rref|basis|multiply)\(([\s\S]+)\)$/i);
+                if (matrixOpMatch) {
+                    let func = matrixOpMatch[1].toLowerCase();
+                    if (func === 'multiply') {
+                        try {
+                            let innerStr = matrixOpMatch[2].trim();
+                            let depth2 = 0, splitIdx = -1;
+                            for (let ci = 0; ci < innerStr.length; ci++) {
+                                if (innerStr[ci] === '(' || innerStr[ci] === '[') depth2++;
+                                else if (innerStr[ci] === ')' || innerStr[ci] === ']') depth2--;
+                                else if (innerStr[ci] === ',' && depth2 === 0) { splitIdx = ci; break; }
+                            }
+                            if (splitIdx === -1) throw new Error('multiply() requires two arguments');
+                            let argA = innerStr.slice(0, splitIdx).trim();
+                            let argB = innerStr.slice(splitIdx + 1).trim();
 
-                    // Check if constant
-                    let leftVars = nerdamer(left).variables();
-                    let rightVars = nerdamer(right).variables();
-                    let isConstant = (leftVars.length === 0 && rightVars.length === 0);
+                            const core = nerdamer.getCore();
+                            let MA_expr = nerdamer(argA);
+                            let MB_expr = nerdamer(argB);
+                            if (!(MA_expr.symbol instanceof core.Matrix)) throw new Error('First argument of multiply() must be a matrix');
+                            if (!(MB_expr.symbol instanceof core.Matrix)) throw new Error('Second argument of multiply() must be a matrix');
 
-                    if (isConstant) {
-                        let leftVal = parseFloat(nerdamer(left).evaluate().text());
-                        let rightVal = parseFloat(nerdamer(right).evaluate().text());
-                        let epsilon = 1e-12;
-                        let resBool = false;
-                        switch (op) {
-                            case 'eq': resBool = Math.abs(leftVal - rightVal) < epsilon; break;
-                            case 'lt': resBool = leftVal < rightVal - epsilon; break;
-                            case 'gt': resBool = leftVal > rightVal + epsilon; break;
-                            case 'lte': resBool = leftVal <= rightVal + epsilon; break;
-                            case 'gte': resBool = leftVal >= rightVal - epsilon; break;
+                            let MA = MA_expr.symbol, MB = MB_expr.symbol;
+                            let rowsA = MA.rows(), colsA = MA.cols();
+                            let rowsB = MB.rows(), colsB = MB.cols();
+                            if (colsA !== rowsB) throw new Error(`Matrix dimensions incompatible for multiplication: (${rowsA}\u00d7${colsA}) \u00b7 (${rowsB}\u00d7${colsB})`);
+
+                            let result = [];
+                            for (let i = 0; i < rowsA; i++) {
+                                let row = [];
+                                for (let j = 0; j < colsB; j++) {
+                                    let cell = nerdamer('0').symbol;
+                                    for (let k = 0; k < colsA; k++) {
+                                        let prod = core.PARSER.multiply(MA.get(i, k), MB.get(k, j));
+                                        cell = core.PARSER.add(cell, prod);
+                                    }
+                                    row.push(cell);
+                                }
+                                result.push(row);
+                            }
+                            let resultMatrix = new core.Matrix(...result);
+                            let resultLaTeX = formatNerdamerMatrixToBMatrix(resultMatrix);
+
+                            const pIn2 = document.createElement('p');
+                            renderKatex(`\\text{Input: } ${stmtDisplayLaTeX}`, pIn2, { throwOnError: false });
+                            solId.appendChild(pIn2);
+
+                            const pOut2 = document.createElement('p');
+                            renderKatex(`\\text{Result: } ${resultLaTeX}`, pOut2, { throwOnError: false });
+                            solId.appendChild(pOut2);
+
+                            if (k === statements.length - 1) {
+                                if (typeof window !== 'undefined') window.mathSolverLastSolution = resultLaTeX;
+                                saveSolutionToHistory(user_input, resultLaTeX);
+                            }
+                            continue;
+                        } catch (err2) {
+                            console.error('Error in multiply():', err2);
+                            const pErr2 = document.createElement('p');
+                            pErr2.innerText = `Error: ${err2.message}`;
+                            solId.appendChild(pErr2);
+                            continue;
                         }
-                        resultLaTeX = `\\text{Result: } ` + (resBool ? `\\text{true}` : `\\text{false}`);
-                    } else {
-                        let leftTeX = nerdamer(left).toTeX();
-                        let rightTeX = nerdamer(right).toTeX();
-                        let opTeX = "";
-                        switch (op) {
-                            case 'eq': opTeX = "="; break;
-                            case 'lt': opTeX = "<"; break;
-                            case 'gt': opTeX = ">"; break;
-                            case 'lte': opTeX = "\\le"; break;
-                            case 'gte': opTeX = "\\ge"; break;
-                        }
-                        resultLaTeX = `\\text{Result: } ${leftTeX} ${opTeX} ${rightTeX}`;
                     }
-                } else {
-                    let isCF = formatContinuedFractionLaTeX(expr.toString()) !== null;
-                    let isCollection = (expr.symbol && Array.isArray(expr.symbol.elements) && !isCF && !(_core && (expr.symbol instanceof _core.Matrix || (expr.symbol instanceof _core.Vector && !isRootFinding))));
-                    let evaluated, simplified;
-                    if (isCollection) {
-                        evaluated = expr;
-                        simplified = expr;
-                    } else {
-                        try {
-                            evaluated = expr.evaluate();
-                        } catch (e) {
-                            evaluated = expr;
+
+                    let func2 = func;
+                    let argStr = matrixOpMatch[2].trim();
+
+                    try {
+                        let M_expr = nerdamer(argStr);
+                        const core = nerdamer.getCore();
+                        if (!(M_expr.symbol instanceof core.Matrix)) {
+                            throw new Error(`Argument to ${func2}() must evaluate to a matrix.`);
                         }
-                        try {
-                            simplified = processedInput.includes('partfrac') ? expr : expr.simplify();
-                            if (simplified.toString() !== expr.toString()) {
-                                let vars = expr.variables();
-                                if (vars.length > 0) {
-                                    let valExpr = nerdamer(expr.toString());
-                                    let valSimp = nerdamer(simplified.toString());
-                                    for (let v of vars) {
-                                        valExpr = valExpr.sub(v, '0.5');
-                                        valSimp = valSimp.sub(v, '0.5');
-                                    }
-                                    valExpr = valExpr.evaluate();
-                                    valSimp = valSimp.evaluate();
-                                    let numExpr = Number(valExpr.text('decimals'));
-                                    let numSimp = Number(valSimp.text('decimals'));
-                                    if (!isNaN(numExpr) && !isNaN(numSimp) && Math.abs(numExpr - numSimp) >= 1e-7) {
-                                        console.log("Buggy Nerdamer simplification detected. Falling back to unsimplified expression.");
-                                        simplified = expr;
-                                    }
+
+                        const pIn = document.createElement('p');
+                        renderKatex(`\\text{Input: } ${stmtDisplayLaTeX}`, pIn, { throwOnError: false });
+                        solId.appendChild(pIn);
+
+                        const pOut = document.createElement('p');
+                        let resultLaTeX = "";
+
+                        if (func === 'eigenvalues') {
+                            let evsExpr = calculateEigenvalues(M_expr.symbol);
+                            let evsList = [];
+                            if (evsExpr.symbol && evsExpr.symbol.elements) {
+                                evsList = evsExpr.symbol.elements.map(el => el.toString());
+                            } else {
+                                let str = evsExpr.toString();
+                                evsList = str[0] === '[' ? str.slice(1, -1).split(',') : [str];
+                            }
+                            evsList = evsList.map(ev => ev.trim()).filter(ev => ev !== '');
+                            let uniqueEvs = [];
+                            for (let ev of evsList) {
+                                let cleaned = cleanNumericalValue(ev).toString();
+                                if (!uniqueEvs.includes(cleaned)) {
+                                    uniqueEvs.push(cleaned);
                                 }
                             }
-                        } catch (err) {
-                            simplified = expr;
+                            let tevs = uniqueEvs.map(ev => formatComplexTeX(ev));
+                            resultLaTeX = `\\lambda = ` + tevs.join(', ');
+                        } else if (func === 'eigenvectors') {
+                            let evecs = calculateEigenvectors(M_expr.symbol);
+                            resultLaTeX = `\\text{Eigenvalues and Eigenvectors: } \\\\ ` + formatEigenvectorsLaTeX(evecs);
+                        } else if (func === 'rref') {
+                            let arr = parseNerdamerMatrix(M_expr.symbol);
+                            let rrefArr = rrefSymbolic(arr);
+                            let rrefMatrix = new core.Matrix(...rrefArr.map(row => row.map(x => x.symbol)));
+                            resultLaTeX = `\\text{RREF} = ` + formatNerdamerMatrixToBMatrix(rrefMatrix);
+                        } else if (func === 'basis') {
+                            let arr = parseNerdamerMatrix(M_expr.symbol);
+                            let numRows = arr.length;
+                            let numCols = arr[0].length;
+                            let R = rrefSymbolic(arr);
+                            let pivotCols = [];
+                            for (let r = 0; r < numRows; r++) {
+                                let p = -1;
+                                for (let c = 0; c < numCols; c++) {
+                                    if (nerdamer(R[r][c]).simplify().toString() !== '0') {
+                                        p = c;
+                                        break;
+                                    }
+                                }
+                                if (p !== -1) pivotCols.push(p);
+                            }
+                            let basisLaTeXs = [];
+                            for (let c of pivotCols) {
+                                let colVec = [];
+                                for (let r = 0; r < numRows; r++) {
+                                    colVec.push(nerdamer(arr[r][c]).toTeX());
+                                }
+                                basisLaTeXs.push(`\\begin{bmatrix} ${colVec.join(' \\\\ ')} \\end{bmatrix}`);
+                            }
+                            resultLaTeX = `\\text{Basis columns: } \\left\\{ ${basisLaTeXs.join(', ')} \\right\\}`;
                         }
+
+                        renderKatex(resultLaTeX, pOut, { throwOnError: false });
+                        solId.appendChild(pOut);
+
+                        if (k === statements.length - 1) {
+                            if (typeof window !== 'undefined') {
+                                window.mathSolverLastSolution = resultLaTeX;
+                            }
+                            saveSolutionToHistory(user_input, resultLaTeX);
+                        }
+                        continue;
+                    } catch (err) {
+                        console.error("Error in custom matrix op:", err);
+                        const pErr = document.createElement('p');
+                        pErr.innerText = `Error: ${err.message}`;
+                        solId.appendChild(pErr);
+                        continue;
                     }
-                    let simplifiedStr = simplifyFractionsInText(simplified.toString());
+                }
 
-                    if (outputInDegrees) {
-                        let radVal = null;
-                        try {
-                            let valText = nerdamer(processedInput).evaluate().text('decimals');
-                            let numVal = Number(valText.trim());
-                            if (!isNaN(numVal) && isFinite(numVal)) {
-                                radVal = numVal;
-                            }
-                        } catch (e) { }
+                let expr = nerdamer(processedStmt);
 
-                        if (radVal !== null) {
-                            let degVal = radVal * 180 / Math.PI;
-                            if (Math.abs(degVal - Math.round(degVal)) < 1e-9) {
-                                degVal = Math.round(degVal);
-                            } else {
-                                degVal = parseFloat(degVal.toFixed(10));
+                const pIn = document.createElement('p');
+                renderKatex(`\\text{Input: } ${stmtDisplayLaTeX}`, pIn, { throwOnError: false });
+                solId.appendChild(pIn);
+
+                const pOut = document.createElement('p');
+                let resultLaTeX = '';
+
+                let parsedCF = formatContinuedFractionLaTeX(expr.toString());
+                if (parsedCF !== null) {
+                    resultLaTeX = `\\text{Result: } ${parsedCF}`;
+                } else {
+                    const _core = (typeof nerdamer !== 'undefined' && nerdamer.getCore) ? nerdamer.getCore() : null;
+                    let isRootFinding = /\b(solve|roots|nroots)\b/i.test(processedStmt);
+                    if (_core && expr.symbol instanceof _core.Matrix) {
+                        resultLaTeX = `\\text{Result: } ` + formatNerdamerMatrixToBMatrix(expr.symbol);
+                    } else if (_core && expr.symbol instanceof _core.Vector && !isRootFinding) {
+                        let cols = expr.symbol.elements.map(x => nerdamer(x).toTeX());
+                        resultLaTeX = `\\text{Result: } \\begin{bmatrix}` + cols.join(' & ') + `\\end{bmatrix}`;
+                    } else if (expr.symbol && expr.symbol.constructor.name === 'Collection' && expr.symbol.elements && expr.symbol.elements.length === 3 && ['eq', 'lt', 'gt', 'lte', 'gte'].includes(expr.symbol.elements[2].toString())) {
+                        let elements = expr.symbol.elements;
+                        let left = elements[0];
+                        let right = elements[1];
+                        let op = elements[2].toString();
+
+                        let leftVars = nerdamer(left).variables();
+                        let rightVars = nerdamer(right).variables();
+                        let isConstant = (leftVars.length === 0 && rightVars.length === 0);
+
+                        if (isConstant) {
+                            let leftVal = parseFloat(nerdamer(left).evaluate().text());
+                            let rightVal = parseFloat(nerdamer(right).evaluate().text());
+                            let epsilon = 1e-12;
+                            let resBool = false;
+                            switch (op) {
+                                case 'eq': resBool = Math.abs(leftVal - rightVal) < epsilon; break;
+                                case 'lt': resBool = leftVal < rightVal - epsilon; break;
+                                case 'gt': resBool = leftVal > rightVal + epsilon; break;
+                                case 'lte': resBool = leftVal <= rightVal + epsilon; break;
+                                case 'gte': resBool = leftVal >= rightVal - epsilon; break;
                             }
-                            resultLaTeX = degVal.toString() + '^{\\circ}';
+                            resultLaTeX = `\\text{Result: } ` + (resBool ? `\\text{true}` : `\\text{false}`);
                         } else {
-                            // Fallback if symbolic
-                            resultLaTeX = `\\left(${katexFormat(simplifiedStr)}\\right) * 180 / pi`;
+                            let leftTeX = nerdamer(left).toTeX();
+                            let rightTeX = nerdamer(right).toTeX();
+                            let opTeX = "";
+                            switch (op) {
+                                case 'eq': opTeX = "="; break;
+                                case 'lt': opTeX = "<"; break;
+                                case 'gt': opTeX = ">"; break;
+                                case 'lte': opTeX = "\\le"; break;
+                                case 'gte': opTeX = "\\ge"; break;
+                            }
+                            resultLaTeX = `\\text{Result: } ${leftTeX} ${opTeX} ${rightTeX}`;
                         }
                     } else {
+                        let isCF = formatContinuedFractionLaTeX(expr.toString()) !== null;
+                        let isCollection = (expr.symbol && Array.isArray(expr.symbol.elements) && !isCF && !(_core && (expr.symbol instanceof _core.Matrix || (expr.symbol instanceof _core.Vector && !isRootFinding))));
+                        let evaluated, simplified;
                         if (isCollection) {
-                            let elements = simplified.symbol.elements;
-                            let formattedElements = elements.map(el => katexFormat(el.toString()));
-                            resultLaTeX = formattedElements.join(', ');
+                            evaluated = expr;
+                            simplified = expr;
+                        } else {
+                            try {
+                                evaluated = expr.evaluate();
+                            } catch (e) {
+                                evaluated = expr;
+                            }
+                            try {
+                                simplified = processedStmt.includes('partfrac') ? expr : expr.simplify();
+                                if (simplified.toString() !== expr.toString()) {
+                                    let vars = expr.variables();
+                                    if (vars.length > 0) {
+                                        let valExpr = nerdamer(expr.toString());
+                                        let valSimp = nerdamer(simplified.toString());
+                                        for (let v of vars) {
+                                            valExpr = valExpr.sub(v, '0.5');
+                                            valSimp = valSimp.sub(v, '0.5');
+                                        }
+                                        valExpr = valExpr.evaluate();
+                                        valSimp = valSimp.evaluate();
+                                        let numExpr = Number(valExpr.text('decimals'));
+                                        let numSimp = Number(valSimp.text('decimals'));
+                                        if (!isNaN(numExpr) && !isNaN(numSimp) && Math.abs(numExpr - numSimp) >= 1e-7) {
+                                            console.log("Buggy Nerdamer simplification detected. Falling back to unsimplified expression.");
+                                            simplified = expr;
+                                        }
+                                    }
+                                }
+                            } catch (err) {
+                                simplified = expr;
+                            }
+                        }
+                        let simplifiedStr = simplifyFractionsInText(simplified.toString());
 
-                            let hasMessy = elements.some(el => isMessySolution(el.toString()));
-                            if (hasMessy) {
-                                try {
-                                    let decList = [];
-                                    let hasVal = false;
-                                    for (let el of elements) {
-                                        let elDec = getDecimalValue(el.toString());
-                                        if (elDec !== null) {
-                                            decList.push(formatDecimalStringToLaTeX(elDec));
-                                            if (elDec !== el.toString() && elDec !== simplifyFractionsInText(el.toString())) {
-                                                hasVal = true;
+                        if (outputInDegrees) {
+                            let radVal = null;
+                            try {
+                                let valText = nerdamer(processedStmt).evaluate().text('decimals');
+                                let numVal = Number(valText.trim());
+                                if (!isNaN(numVal) && isFinite(numVal)) {
+                                    radVal = numVal;
+                                }
+                            } catch (e) { }
+
+                            if (radVal !== null) {
+                                let degVal = radVal * 180 / Math.PI;
+                                if (Math.abs(degVal - Math.round(degVal)) < 1e-9) {
+                                    degVal = Math.round(degVal);
+                                } else {
+                                    degVal = parseFloat(degVal.toFixed(10));
+                                }
+                                resultLaTeX = degVal.toString() + '^{\\circ}';
+                            } else {
+                                resultLaTeX = `\\left(${katexFormat(simplifiedStr)}\\right) * 180 / pi`;
+                            }
+                        } else {
+                            if (isCollection) {
+                                let elements = simplified.symbol.elements;
+                                let formattedElements = elements.map(el => katexFormat(el.toString()));
+                                resultLaTeX = formattedElements.join(', ');
+
+                                let hasMessy = elements.some(el => isMessySolution(el.toString()));
+                                if (hasMessy) {
+                                    try {
+                                        let decList = [];
+                                        let hasVal = false;
+                                        for (let el of elements) {
+                                            let elDec = getDecimalValue(el.toString());
+                                            if (elDec !== null) {
+                                                decList.push(formatDecimalStringToLaTeX(elDec));
+                                                if (elDec !== el.toString() && elDec !== simplifyFractionsInText(el.toString())) {
+                                                    hasVal = true;
+                                                }
+                                            } else {
+                                                decList.push(katexFormat(el.toString()));
+                                            }
+                                        }
+                                        if (hasVal) {
+                                            resultLaTeX = '\\approx ' + decList.join(', ');
+                                        }
+                                    } catch (e) {
+                                        console.error("Error formatting decimal collection:", e);
+                                    }
+                                }
+                            } else {
+                                let dec = getDecimalValue(processedStmt);
+                                if (dec && dec !== simplifiedStr && isMessySolution(simplified.toString())) {
+                                    resultLaTeX = '\\approx ' + formatDecimalStringToLaTeX(dec);
+                                } else if (dec && dec !== simplifiedStr && dec !== simplifyFractionsInText(simplified.toString())) {
+                                    resultLaTeX = katexFormat(simplifiedStr) + ' \\approx ' + formatDecimalStringToLaTeX(dec);
+                                } else if (evaluated.toString() !== simplified.toString()) {
+                                    try {
+                                        let evalText = simplifyFractionsInText(evaluated.text());
+                                        let numVal = Number(evalText.trim());
+                                        if (!isNaN(numVal) && isFinite(numVal)) {
+                                            if (isMessySolution(simplified.toString())) {
+                                                resultLaTeX = '\\approx ' + evalText;
+                                            } else {
+                                                resultLaTeX = katexFormat(simplifiedStr) + ' \\approx ' + evalText;
                                             }
                                         } else {
-                                            decList.push(katexFormat(el.toString()));
+                                            resultLaTeX = katexFormat(simplifiedStr);
                                         }
-                                    }
-                                    if (hasVal) {
-                                        resultLaTeX = '\\approx ' + decList.join(', ');
-                                    }
-                                } catch (e) {
-                                    console.error("Error formatting decimal collection:", e);
-                                }
-                            }
-                        } else {
-                            let dec = getDecimalValue(processedInput);
-                            if (dec && dec !== simplifiedStr && isMessySolution(simplified.toString())) {
-                                resultLaTeX = '\\approx ' + formatDecimalStringToLaTeX(dec);
-                            } else if (dec && dec !== simplifiedStr && dec !== simplifyFractionsInText(simplified.toString())) {
-                                resultLaTeX = katexFormat(simplifiedStr) + ' \\approx ' + formatDecimalStringToLaTeX(dec);
-                            } else if (evaluated.toString() !== simplified.toString()) {
-                                try {
-                                    let evalText = simplifyFractionsInText(evaluated.text());
-                                    let numVal = Number(evalText.trim());
-                                    if (!isNaN(numVal) && isFinite(numVal)) {
-                                        if (isMessySolution(simplified.toString())) {
-                                            resultLaTeX = '\\approx ' + evalText;
-                                        } else {
-                                            resultLaTeX = katexFormat(simplifiedStr) + ' \\approx ' + evalText;
-                                        }
-                                    } else {
+                                    } catch (_) {
                                         resultLaTeX = katexFormat(simplifiedStr);
                                     }
-                                } catch (_) {
+                                } else {
                                     resultLaTeX = katexFormat(simplifiedStr);
                                 }
-                            } else {
-                                resultLaTeX = katexFormat(simplifiedStr);
                             }
                         }
+                        resultLaTeX = `\\text{Result: } ` + resultLaTeX;
                     }
-                    resultLaTeX = `\\text{Result: } ` + resultLaTeX;
+                }
+
+                resultLaTeX = simplifyFractionsInText(resultLaTeX);
+                renderKatex(resultLaTeX, pOut, { throwOnError: false });
+                solId.appendChild(pOut);
+                if (k === statements.length - 1 && typeof window !== 'undefined') {
+                    window.mathSolverLastSolution = resultLaTeX;
+                }
+                if (k === statements.length - 1) {
+                    saveSolutionToHistory(user_input, resultLaTeX);
                 }
             }
-
-            resultLaTeX = simplifyFractionsInText(resultLaTeX);
-            renderKatex(resultLaTeX, pOut, { throwOnError: false });
-            solId.appendChild(pOut);
-            if (typeof window !== 'undefined') {
-                window.mathSolverLastSolution = resultLaTeX;
-            }
-            saveSolutionToHistory(user_input, resultLaTeX);
         }
     } catch (e) {
         console.error("Error in mathSolver:", e);
@@ -10194,17 +10700,56 @@ function getODEOrder(odeStr) {
         if (maxOrder < 1) maxOrder = 1;
     }
 
+    // 4. Check for diff(y, x, N) or diff(y, x)
+    let diffMatches = odeStr.match(/diff\(/g);
+    if (diffMatches) {
+        let idx = -1;
+        while ((idx = odeStr.indexOf('diff(', idx + 1)) !== -1) {
+            let braceCount = 1;
+            let argStr = "";
+            let j = idx + 5;
+            for (; j < odeStr.length; j++) {
+                if (odeStr[j] === '(') braceCount++;
+                if (odeStr[j] === ')') braceCount--;
+                if (braceCount === 0) break;
+                argStr += odeStr[j];
+            }
+            let args = [];
+            let currentArg = "";
+            let pCount = 0;
+            for (let c of argStr) {
+                if (c === '(' || c === '[' || c === '{') pCount++;
+                if (c === ')' || c === ']' || c === '}') pCount--;
+                if (c === ',' && pCount === 0) {
+                    args.push(currentArg.trim());
+                    currentArg = "";
+                } else {
+                    currentArg += c;
+                }
+            }
+            args.push(currentArg.trim());
+            let order = 1;
+            if (args.length >= 3) {
+                let parsed = parseInt(args[2]);
+                if (!isNaN(parsed)) order = parsed;
+            }
+            if (order > maxOrder) maxOrder = order;
+        }
+    }
+
     return maxOrder;
 }
 
 function parseInitialCondition(condStr) {
     let clean = condStr.replace(/\s+/g, '');
+    clean = clean.replace(/[,;.]*$/, '');
     let match = clean.match(/^y('*)?\(?(-?\d+(?:\.\d+)?)\)?=(.+)$/);
     if (!match) return null;
     let primes = match[1] || '';
     let order = primes.length;
     let x0 = parseFloat(match[2]);
     let val = match[3];
+    val = translateLatexToNerdamer(val);
     return { order, x0, val };
 }
 
@@ -10234,142 +10779,348 @@ function solveInitValue(firstODEsol, parsedConds) {
     }
 
     let eqParts = firstODEsol.split('=');
+    let lhs = eqParts[0].trim();
     let rhsExpr = eqParts[1] ? eqParts[1].trim() : eqParts[0].trim();
+    let isExplicit = (lhs === 'y');
 
-    // 1. Rename C -> C_0, const_e -> e to avoid conflicts/differentiations issues
-    let renamedExpr = rhsExpr.replace(/\bC\b/g, 'C_0').replace(/\bconst_e\b/g, 'e');
+    if (isExplicit) {
+        // --- EXPLICIT GENERAL SOLUTION (y = RHS) ---
+        let renamedExpr = rhsExpr.replace(/\bC\b/g, 'C_0').replace(/\bconst_e\b/g, 'e');
+        let matches = renamedExpr.match(/\bC_\d+\b/g) || [];
+        let uniqueConstants = [...new Set(matches)];
 
-    // 2. Identify the constants in the renamed general solution
-    let matches = renamedExpr.match(/\bC_\d+\b/g) || [];
-    let uniqueConstants = [...new Set(matches)];
+        if (uniqueConstants.length === 0) {
+            console.log("No constants found in general solution to solve for.");
+            return null;
+        }
 
-    if (uniqueConstants.length === 0) {
-        console.log("No constants found in general solution to solve for.");
-        return null;
-    }
+        let maxDeriv = 0;
+        for (let cond of parsedConds) {
+            if (cond.order > maxDeriv) maxDeriv = cond.order;
+        }
 
-    // 3. Set up derivative expressions
-    let maxDeriv = 0;
-    for (let cond of parsedConds) {
-        if (cond.order > maxDeriv) maxDeriv = cond.order;
-    }
+        let derivExprs = [];
+        derivExprs[0] = renamedExpr;
+        for (let k = 1; k <= maxDeriv; k++) {
+            try {
+                derivExprs[k] = nerdamer(`diff(${derivExprs[k - 1]}, x)`).toString();
+            } catch (e) {
+                console.error(`Error computing derivative of order ${k}:`, e);
+                return null;
+            }
+        }
 
-    let derivExprs = [];
-    derivExprs[0] = renamedExpr;
-    for (let k = 1; k <= maxDeriv; k++) {
+        let eqs = [];
+        let evalInfos = [];
+        for (let cond of parsedConds) {
+            let derivExpr = derivExprs[cond.order];
+            if (!derivExpr) {
+                console.error(`Missing derivative expression for order ${cond.order}`);
+                return null;
+            }
+
+            let derivLaTeX = nerdamer(derivExpr).toTeX();
+            let evalExpr;
+            try {
+                evalExpr = nerdamer(derivExpr).sub('x', cond.x0.toString()).simplify().toString();
+            } catch (e) {
+                console.error(`Error substituting x = ${cond.x0} in derivative:`, e);
+                return null;
+            }
+
+            let evalLaTeX = nerdamer(evalExpr).toTeX();
+            eqs.push(`(${evalExpr}) - (${cond.val}) = 0`);
+
+            let derivName = "y";
+            if (cond.order === 1) derivName = "y'";
+            else if (cond.order === 2) derivName = "y''";
+            else if (cond.order > 2) derivName = `y^{(${cond.order})}`;
+
+            evalInfos.push({
+                derivName,
+                x0: cond.x0,
+                val: cond.val,
+                derivLaTeX,
+                evalLaTeX
+            });
+        }
+
+        let solution = [];
         try {
-            derivExprs[k] = nerdamer(`diff(${derivExprs[k - 1]}, x)`).toString();
+            let eqsEvaluated = eqs.map(eq => {
+                try {
+                    return nerdamer(eq).evaluate().toString();
+                } catch (err) {
+                    return eq;
+                }
+            });
+            solution = nerdamer.solveEquations(eqsEvaluated);
         } catch (e) {
-            console.error(`Error computing derivative of order ${k}:`, e);
-            return null;
-        }
-    }
-
-    // 4. Generate equations by substituting x = x0
-    let eqs = [];
-    let evalInfos = [];
-    for (let cond of parsedConds) {
-        let derivExpr = derivExprs[cond.order];
-        if (!derivExpr) {
-            console.error(`Missing derivative expression for order ${cond.order}`);
+            console.error("Error in nerdamer.solveEquations:", e);
             return null;
         }
 
-        let derivLaTeX = nerdamer(derivExpr).toTeX();
-
-        let evalExpr;
-        try {
-            evalExpr = nerdamer(derivExpr).sub('x', cond.x0.toString()).simplify().toString();
-        } catch (e) {
-            console.error(`Error substituting x = ${cond.x0} in derivative:`, e);
-            return null;
-        }
-
-        let evalLaTeX = nerdamer(evalExpr).toTeX();
-        eqs.push(`(${evalExpr}) - (${cond.val}) = 0`);
-
-        let derivName = "y";
-        if (cond.order === 1) derivName = "y'";
-        else if (cond.order === 2) derivName = "y''";
-        else if (cond.order > 2) derivName = `y^{(${cond.order})}`;
-
-        evalInfos.push({
-            derivName,
-            x0: cond.x0,
-            val: cond.val,
-            derivLaTeX,
-            evalLaTeX
-        });
-    }
-
-    // 5. Solve the linear system
-    let solution = [];
-    try {
-        solution = nerdamer.solveEquations(eqs);
-    } catch (e) {
-        console.error("Error in nerdamer.solveEquations:", e);
-        return null;
-    }
-
-    let solvedConstants = {};
-    if (solution.length > 0) {
-        if (Array.isArray(solution[0])) {
-            for (let sol of solution) {
-                solvedConstants[sol[0]] = sol[1].toString();
+        let solvedConstants = {};
+        if (solution.length > 0) {
+            if (Array.isArray(solution[0])) {
+                for (let sol of solution) {
+                    solvedConstants[sol[0]] = sol[1].toString();
+                }
+            } else {
+                let varName = solution[0];
+                let valObj = solution[1];
+                if (Array.isArray(valObj)) {
+                    valObj = valObj[0];
+                }
+                solvedConstants[varName] = valObj.toString();
             }
         } else {
-            let varName = solution[0];
-            let valObj = solution[1];
-            if (Array.isArray(valObj)) {
-                valObj = valObj[0];
-            }
-            solvedConstants[varName] = valObj.toString();
-        }
-    } else {
-        console.log("No solution returned by solveEquations");
-        return null;
-    }
-
-    // 6. Build intermediate steps LaTeX
-    let stepsLaTeX = [];
-
-    for (let info of evalInfos) {
-        stepsLaTeX.push(`\\text{For } ${info.derivName}(${info.x0}) = ${info.val}: \\quad ${info.derivName}(x) = ${info.derivLaTeX}`);
-        stepsLaTeX.push(`\\implies ${info.derivName}(${info.x0}) = ${info.evalLaTeX} = ${info.val}`);
-    }
-
-    let systemLines = evalInfos.map(info => `${info.evalLaTeX} = ${info.val}`);
-    stepsLaTeX.push(`\\text{System of equations: } \\begin{cases} ` + systemLines.join(' \\\\ ') + ` \\end{cases}`);
-
-    let solvedLines = [];
-    for (let c of uniqueConstants) {
-        let val = solvedConstants[c];
-        if (val === undefined) {
-            console.log(`Constant ${c} was not solved for.`);
+            console.log("No solution returned by solveEquations");
             return null;
         }
-        let valTeX = nerdamer(val).toTeX();
-        let dispName = c;
-        if (c === 'C_0' && !rhsExpr.includes('C_0') && rhsExpr.includes('C')) {
-            dispName = 'C';
+
+        let stepsLaTeX = [];
+        for (let info of evalInfos) {
+            let valTeX = info.val;
+            try {
+                valTeX = nerdamer(info.val).toTeX();
+            } catch (e) { }
+            stepsLaTeX.push(`\\text{For } ${info.derivName}(${info.x0}) = ${valTeX}: \\quad ${info.derivName}(x) = ${info.derivLaTeX}`);
+            stepsLaTeX.push(`\\implies ${info.derivName}(${info.x0}) = ${info.evalLaTeX} = ${valTeX}`);
         }
-        solvedLines.push(`${dispName} = ${valTeX}`);
+
+        let systemLines = evalInfos.map(info => {
+            let valTeX = info.val;
+            try {
+                valTeX = nerdamer(info.val).toTeX();
+            } catch (e) { }
+            return `${info.evalLaTeX} = ${valTeX}`;
+        });
+        stepsLaTeX.push(`\\text{System of equations: } \\begin{cases} ` + systemLines.join(' \\\\ ') + ` \\end{cases}`);
+
+        let solvedLines = [];
+        for (let c of uniqueConstants) {
+            let val = solvedConstants[c];
+            if (val === undefined) {
+                console.log(`Constant ${c} was not solved for.`);
+                return null;
+            }
+            let valTeX = nerdamer(val).toTeX();
+            let dispName = c;
+            if (c === 'C_0' && !rhsExpr.includes('C_0') && rhsExpr.includes('C')) {
+                dispName = 'C';
+            }
+            solvedLines.push(`${dispName} = ${valTeX}`);
+        }
+        stepsLaTeX.push(`\\text{Solving for constants yields: } ` + solvedLines.join(',\\quad '));
+
+        let particularExpr = renamedExpr;
+        for (let c in solvedConstants) {
+            particularExpr = nerdamer(particularExpr).sub(c, solvedConstants[c]).toString();
+        }
+
+        let stepStr = stepsLaTeX.join(' \\\\\\\\ ');
+        particularExpr = particularExpr.replace(/const_e/g, 'e').replace(/const_\{e\}/g, 'e');
+        stepStr = stepStr.replace(/const_e/g, 'e').replace(/const_\{e\}/g, 'e');
+
+        let particSolStr = 'y = ' + particularExpr;
+
+        return {
+            stepsLaTeX: stepStr,
+            particularSolution: particSolStr
+        };
+
+    } else {
+        // --- IMPLICIT GENERAL SOLUTION (LHS = RHS) ---
+        let renamedLHS = lhs.replace(/\bC\b/g, 'C_0').replace(/\be\b/g, 'const_e');
+        let renamedRHS = rhsExpr.replace(/\bC\b/g, 'C_0').replace(/\be\b/g, 'const_e');
+
+        let fullRenamed = `(${renamedLHS}) - (${renamedRHS})`;
+        let matches = fullRenamed.match(/\bC_\d+\b/g) || [];
+        let uniqueConstants = [...new Set(matches)];
+
+        if (uniqueConstants.length === 0) {
+            console.log("No constants found in general solution to solve for.");
+            return null;
+        }
+
+        let eqs = [];
+        let evalInfos = [];
+        for (let cond of parsedConds) {
+            if (cond.order !== 0) {
+                console.error("Higher-order condition on implicit general solution is not supported.");
+                return null;
+            }
+
+            let evalExpr;
+            try {
+                evalExpr = nerdamer(fullRenamed)
+                    .sub('x', cond.x0.toString())
+                    .sub('y', cond.val.toString())
+                    .simplify()
+                    .toString();
+            } catch (e) {
+                console.error(`Error substituting in implicit equation:`, e);
+                return null;
+            }
+
+            eqs.push(`(${evalExpr}) = 0`);
+
+            let lhsLaTeX = nerdamer(renamedLHS).toTeX();
+            let rhsLaTeX = nerdamer(renamedRHS).toTeX();
+            let evalLHSLaTeX = nerdamer(renamedLHS).sub('x', cond.x0.toString()).sub('y', cond.val.toString()).toTeX();
+            let evalRHSLaTeX = nerdamer(renamedRHS).sub('x', cond.x0.toString()).sub('y', cond.val.toString()).toTeX();
+
+            let valTeX = cond.val;
+            try {
+                valTeX = nerdamer(cond.val).toTeX();
+            } catch (e) { }
+
+            evalInfos.push({
+                x0: cond.x0,
+                val: cond.val,
+                valTeX,
+                derivLaTeX: `${lhsLaTeX} = ${rhsLaTeX}`,
+                evalLaTeX: `${evalLHSLaTeX} = ${evalRHSLaTeX}`
+            });
+        }
+
+        let solution = [];
+        try {
+            let eqsEvaluated = eqs.map(eq => {
+                try {
+                    return nerdamer(eq).evaluate().toString();
+                } catch (err) {
+                    return eq;
+                }
+            });
+            solution = nerdamer.solveEquations(eqsEvaluated);
+        } catch (e) {
+            console.error("Error in nerdamer.solveEquations:", e);
+            return null;
+        }
+
+        let solvedConstants = {};
+        if (solution.length > 0) {
+            if (Array.isArray(solution[0])) {
+                for (let sol of solution) {
+                    solvedConstants[sol[0]] = sol[1].toString();
+                }
+            } else {
+                let varName = solution[0];
+                let valObj = solution[1];
+                if (Array.isArray(valObj)) {
+                    valObj = valObj[0];
+                }
+                solvedConstants[varName] = valObj.toString();
+            }
+        } else {
+            console.log("No solution returned by solveEquations");
+            return null;
+        }
+
+        let stepsLaTeX = [];
+        for (let info of evalInfos) {
+            stepsLaTeX.push(`\\text{For } y(${info.x0}) = ${info.valTeX}: \\quad ${info.derivLaTeX}`);
+            stepsLaTeX.push(`\\implies ${info.evalLaTeX}`);
+        }
+
+        let systemLines = evalInfos.map(info => info.evalLaTeX);
+        stepsLaTeX.push(`\\text{System of equations: } \\begin{cases} ` + systemLines.join(' \\\\ ') + ` \\end{cases}`);
+
+        let solvedLines = [];
+        for (let c of uniqueConstants) {
+            let val = solvedConstants[c];
+            if (val === undefined) {
+                console.log(`Constant ${c} was not solved for.`);
+                return null;
+            }
+            let valTeX = nerdamer(val).toTeX();
+            let dispName = c;
+            if (c === 'C_0' && !rhsExpr.includes('C_0') && rhsExpr.includes('C')) {
+                dispName = 'C';
+            }
+            solvedLines.push(`${dispName} = ${valTeX}`);
+        }
+        stepsLaTeX.push(`\\text{Solving for constants yields: } ` + solvedLines.join(',\\quad '));
+
+        let particularLHS = renamedLHS;
+        let particularRHS = renamedRHS;
+        for (let c in solvedConstants) {
+            particularLHS = nerdamer(particularLHS).sub(c, solvedConstants[c]).toString();
+            particularRHS = nerdamer(particularRHS).sub(c, solvedConstants[c]).toString();
+        }
+
+        let stepStr = stepsLaTeX.join(' \\\\\\\\ ');
+        stepStr = stepStr.replace(/const_e/g, 'e').replace(/const_\{e\}/g, 'e');
+
+        // Attempt to explicitly solve for y
+        let particSolStr = particularLHS + ' = ' + particularRHS;
+        try {
+            let solved = "";
+            if (!particularRHS.includes('y')) {
+                let solvedObj = nerdamer.solve(particularLHS + ' = _RHS_', 'y');
+                let solvedStr = solvedObj.toString();
+                if (solvedStr && solvedStr !== '[]') {
+                    solvedStr = solvedStr.replaceAll('[', '').replaceAll(']', '');
+                    if (solvedStr.includes(',')) {
+                        solved = solvedStr.split(',').map(sol => {
+                            return nerdamer(sol).sub('_RHS_', '(' + particularRHS + ')').toString();
+                        }).join(',');
+                    } else {
+                        solved = nerdamer(solvedStr).sub('_RHS_', '(' + particularRHS + ')').toString();
+                    }
+                }
+            } else {
+                let solvedObj = nerdamer.solve(particularLHS + ' = ' + particularRHS, 'y');
+                solved = solvedObj.toString().replaceAll('[', '').replaceAll(']', '');
+            }
+
+            if (solved && solved.includes(',')) {
+                // Select the option that satisfies the initial condition
+                let options = solved.split(',');
+                let bestOption = "";
+                let bestDiff = Infinity;
+                let cond0 = parsedConds.find(c => c.order === 0);
+                if (cond0) {
+                    let targetVal = parseFloat(nerdamer(cond0.val).evaluate().text('decimals'));
+                    for (let opt of options) {
+                        try {
+                            let evaledStr = nerdamer(opt).sub('x', cond0.x0.toString()).sub('const_e', 'e').evaluate().text('decimals');
+                            let evaledVal = parseFloat(evaledStr);
+                            if (!isNaN(evaledVal)) {
+                                let diff = Math.abs(evaledVal - targetVal);
+                                if (diff < 1e-4 && diff < bestDiff) {
+                                    bestDiff = diff;
+                                    bestOption = opt;
+                                }
+                            }
+                        } catch (err) {
+                            console.error("Error evaluating option with initial condition:", err);
+                        }
+                    }
+                }
+                if (bestOption) {
+                    solved = bestOption;
+                }
+            }
+
+            solved = rewriteAtanReciprocal(solved);
+            solved = cleanWeirdNerdamerFractions(solved);
+
+            if (solved && !solved.includes(',') && !solved.includes('y') && !solved.includes('solve')) {
+                particSolStr = 'y = ' + solved;
+            }
+        } catch (e) {
+            console.log("Could not solve particular solution explicitly for y:", e);
+        }
+
+        particSolStr = particSolStr.replace(/const_e/g, 'e').replace(/const_\{e\}/g, 'e');
+        return {
+            stepsLaTeX: stepStr,
+            particularSolution: particSolStr
+        };
     }
-    stepsLaTeX.push(`\\text{Solving for constants yields: } ` + solvedLines.join(',\\quad '));
-
-    // 7. Construct particular solution
-    let particularExpr = renamedExpr;
-    for (let c in solvedConstants) {
-        particularExpr = nerdamer(particularExpr).sub(c, solvedConstants[c]).toString();
-    }
-
-    let stepStr = stepsLaTeX.join(' \\\\\\\\ ');
-    let particSolStr = 'y = ' + particularExpr;
-
-    return {
-        stepsLaTeX: stepStr,
-        particularSolution: particSolStr
-    };
 }
 
 function checkFalsedx(input) {
@@ -10799,10 +11550,29 @@ function singleOrderCheck(problem) {
     return [false, ''];
 }
 
+function resolveUnresolvedIntegrals(str, diffvar) {
+    if (!str || typeof str !== 'string') return str;
+
+    // sech^2 -> tanh
+    str = str.replace(new RegExp('integrate\\(sech\\((' + diffvar + ')\\)\\^2,\\s*' + diffvar + '\\)', 'g'), 'tanh($1)');
+    str = str.replace(new RegExp('integrate\\(cosh\\((' + diffvar + ')\\)\\^\\(-2\\),\\s*' + diffvar + '\\)', 'g'), 'tanh($1)');
+    str = str.replace(new RegExp('integrate\\(1/\\(cosh\\((' + diffvar + ')\\)\\^2\\),\\s*' + diffvar + '\\)', 'g'), 'tanh($1)');
+    str = str.replace(new RegExp('integrate\\(1/cosh\\((' + diffvar + ')\\)\\^2,\\s*' + diffvar + '\\)', 'g'), 'tanh($1)');
+
+    // csch^2 -> -coth
+    str = str.replace(new RegExp('integrate\\(csch\\((' + diffvar + ')\\)\\^2,\\s*' + diffvar + '\\)', 'g'), '-coth($1)');
+    str = str.replace(new RegExp('integrate\\(sinh\\((' + diffvar + ')\\)\\^\\(-2\\),\\s*' + diffvar + '\\)', 'g'), '-coth($1)');
+    str = str.replace(new RegExp('integrate\\(1/\\(sinh\\((' + diffvar + ')\\)\\^2\\),\\s*' + diffvar + '\\)', 'g'), '-coth($1)');
+    str = str.replace(new RegExp('integrate\\(1/sinh\\((' + diffvar + ')\\)\\^2,\\s*' + diffvar + '\\)', 'g'), '-coth($1)');
+
+    return str;
+}
+
 function TotalIntegration(expr, diffvar, order) {
     let sol = expr;
     for (i = 1; i <= order; i++) {
         sol = nerdamer(`integrate(${sol}, ${diffvar})`).toString();
+        sol = resolveUnresolvedIntegrals(sol, diffvar);
     }
     return sol;
 }
@@ -10829,6 +11599,98 @@ function parseExactSol(exact_sol) {
         }
     }
     return null;
+}
+
+function rewriteAtanReciprocal(str) {
+    if (!str || typeof str !== 'string') return str;
+    let idx = str.indexOf('atan(');
+    while (idx !== -1) {
+        let bracketCount = 1;
+        let j = idx + 5;
+        while (j < str.length && bracketCount > 0) {
+            if (str[j] === '(') bracketCount++;
+            else if (str[j] === ')') bracketCount--;
+            j++;
+        }
+        if (bracketCount === 0) {
+            let inside = str.slice(idx + 5, j - 1).trim();
+            let fullMatch = str.slice(idx, j);
+
+            let isNegative = false;
+            if (inside.startsWith('-')) {
+                isNegative = true;
+                inside = inside.slice(1).trim();
+            }
+
+            let hasRecip = false;
+            let base = '';
+            if (inside.endsWith('^(-1)')) {
+                hasRecip = true;
+                base = inside.slice(0, -5).trim();
+            } else if (inside.endsWith('^-1')) {
+                hasRecip = true;
+                base = inside.slice(0, -3).trim();
+            } else if (inside.startsWith('1/')) {
+                hasRecip = true;
+                base = inside.slice(2).trim();
+            }
+
+            if (hasRecip && base) {
+                if (base.startsWith('(') && base.endsWith(')')) {
+                    let subCount = 0;
+                    let matching = true;
+                    for (let k = 0; k < base.length - 1; k++) {
+                        if (base[k] === '(') subCount++;
+                        else if (base[k] === ')') subCount--;
+                        if (subCount === 0 && k > 0) {
+                            matching = false;
+                            break;
+                        }
+                    }
+                    if (matching) {
+                        base = base.slice(1, -1).trim();
+                    }
+                }
+
+                let replacement = (isNegative ? '-' : '') + 'acot(' + base + ')';
+                str = str.replace(fullMatch, replacement);
+                idx = 0;
+                continue;
+            }
+        }
+        idx = str.indexOf('atan(', idx + 1);
+    }
+    return str;
+}
+
+function cleanWeirdNerdamerFractions(str) {
+    if (!str || typeof str !== 'string') return str;
+    return str.replace(/\b(\d+)\/(\d+)\b/g, (match, numStr, denStr) => {
+        let num = parseInt(numStr);
+        let den = parseInt(denStr);
+        if (den === 0) return match;
+
+        let val = num / den;
+        let val_sq = val * val;
+
+        for (let Q = 1; Q <= 100; Q++) {
+            let P = Math.round(val_sq * Q);
+            if (Math.abs(val_sq - P / Q) < 1e-9) {
+                let isPerfP = (Math.round(Math.sqrt(P)) ** 2 === P);
+                let isPerfQ = (Math.round(Math.sqrt(Q)) ** 2 === Q);
+                if (isPerfP && isPerfQ) {
+                    let sqrt_P = Math.round(Math.sqrt(P));
+                    let sqrt_Q = Math.round(Math.sqrt(Q));
+                    if (sqrt_Q === 1) return sqrt_P.toString();
+                    return `${sqrt_P}/${sqrt_Q}`;
+                } else {
+                    if (Q === 1) return `(sqrt(${P}))`;
+                    return `(sqrt(${P}/${Q}))`;
+                }
+            }
+        }
+        return match;
+    });
 }
 
 function cleanSolveResult(expr) {
@@ -10997,6 +11859,65 @@ function separateFactors(expr) {
         }
 
         return { xPart, yPart };
+    } catch (e) {
+        return null;
+    }
+}
+
+function separateFactorsVar(expr, var1, var2) {
+    try {
+        let factored = nerdamer(`factor(${expr})`).toString();
+        let depth = 0;
+        let bracketDepth = 0;
+        const factors = [];
+        let start = 0;
+
+        for (let i = 0; i <= factored.length; i++) {
+            if (i < factored.length) {
+                let char = factored[i];
+                if (char === '(') depth++;
+                else if (char === ')') depth--;
+                else if (char === '[') bracketDepth++;
+                else if (char === ']') bracketDepth--;
+            }
+
+            if (i === factored.length || (factored[i] === '*' && depth === 0 && bracketDepth === 0)) {
+                let factor = factored.slice(start, i).trim();
+                if (factor) {
+                    factors.push(factor);
+                }
+                start = i + 1;
+            }
+        }
+
+        let var1Factors = [];
+        let var2Factors = [];
+        let constFactors = [];
+
+        for (let factor of factors) {
+            let hasVar1 = factor.includes(var1);
+            let hasVar2 = factor.includes(var2);
+
+            if (hasVar1 && hasVar2) {
+                return null;
+            } else if (hasVar1) {
+                var1Factors.push(factor);
+            } else if (hasVar2) {
+                var2Factors.push(factor);
+            } else {
+                constFactors.push(factor);
+            }
+        }
+
+        let var1Part = var1Factors.length > 0 ? var1Factors.join('*') : '1';
+        let var2Part = var2Factors.length > 0 ? var2Factors.join('*') : '1';
+        let constPart = constFactors.length > 0 ? constFactors.join('*') : '1';
+
+        if (constPart !== '1') {
+            var1Part = `${constPart}*(${var1Part})`;
+        }
+
+        return { var1Part, var2Part };
     } catch (e) {
         return null;
     }
@@ -11211,22 +12132,34 @@ function _solveSingleOrder(problem) {
                 let isHomogeneous = tobeInteg.includes('u');
                 let dyLHS, dxRHS;
                 if (isHomogeneous) {
-                    let dyExpr = `1/(${tobeInteg})`;
-                    let simplified = nerdamer(dyExpr).simplify().toString();
-                    let num = nerdamer(simplified).numerator().expand().toString();
-                    let den = nerdamer(simplified).denominator().expand().toString();
-                    dy = `(${num})/(${den})`;
-                    dx = `1/x`;
+                    let separated = separateFactorsVar(tobeInteg, 'x', 'u');
+                    if (separated) {
+                        let dyExpr = `1/(${separated.var2Part})`;
+                        let simplified = nerdamer(dyExpr).simplify().toString();
+                        let num = nerdamer(simplified).numerator().expand().toString();
+                        let den = nerdamer(simplified).denominator().expand().toString();
+                        dy = `(${num})/(${den})`;
+
+                        let dxExpr = `(${separated.var1Part})/x`;
+                        dx = nerdamer(dxExpr).simplify().toString();
+                    } else {
+                        let dyExpr = `1/(${tobeInteg})`;
+                        let simplified = nerdamer(dyExpr).simplify().toString();
+                        let num = nerdamer(simplified).numerator().expand().toString();
+                        let den = nerdamer(simplified).denominator().expand().toString();
+                        dy = `(${num})/(${den})`;
+                        dx = `1/x`;
+                    }
                     console.log(`integrate(${dy}, u), integrate(${dx},x)`);
                     dyLHS = TotalIntegration(dy, 'u', replaceOrder);
                     dyLHS = nerdamer(dyLHS).sub('u', 'y/x').toString();
                     dxRHS = TotalIntegration(dx, 'x', replaceOrder);
 
                     try {
-                        separable_form_step = `\\text{Homogeneous first-order ODE form: } y' = f(y/x)`;
-                        separable_sol_step = `\\text{General solution form: } \\int \\frac{du}{f(u) - u} = \\ln|x| + C \\quad \\text{where } u = y/x`;
-                        separable_separated_step = `\\text{Homogeneous Substitution: } y = u \\cdot x \\implies \\text{Separated Form: } (${nerdamer(dy).toTeX()}) du = (${nerdamer(dx).toTeX()}) dx`;
-                        separable_integration_step = `\\text{Integrating both sides: } \\int (${nerdamer(dy).toTeX()}) du = \\int (${nerdamer(dx).toTeX()}) dx \\implies ${nerdamer(dyLHS).toTeX()} = ${nerdamer(dxRHS).toTeX()} + C`;
+                        separable_form_step = `\\text{Homogeneous substitution ODE form: } y' = f(x, y/x)`;
+                        separable_sol_step = `\\text{Substitution: } y = u \\cdot x \\implies \\text{Separated Form: } (${nerdamer(dy).toTeX()}) du = (${nerdamer(dx).toTeX()}) dx`;
+                        separable_separated_step = `\\text{Integrating both sides: } \\int (${nerdamer(dy).toTeX()}) du = \\int (${nerdamer(dx).toTeX()}) dx`;
+                        separable_integration_step = `\\text{General Solution: } ${nerdamer(dyLHS).toTeX()} = ${nerdamer(dxRHS).toTeX()} + C`;
                     } catch (e) {
                         console.error("Error generating homogeneous separable step LaTeX:", e);
                     }
@@ -11304,20 +12237,6 @@ function _solveSingleOrder(problem) {
                     ode_sol = dxRHS;
                 } else {
                     ode_sol = dyLHS + '=' + dxRHS;
-                    try {
-                        let y = nerdamer(`solve(${ode_sol}, y)`).toString();
-                        console.log(y, ode_sol);
-                        y = y.replaceAll('[', '').replaceAll(']', '');
-                        if (!y.includes(',') && !y == '') {
-                            ode_sol = y;
-                        }
-                        else {
-                            ode_sol = y !== '' ? y.split(',').map((item, i) => `C_${i}*(${item})`).join('+') :
-                                ode_sol;
-                        }
-                    } catch (e) {
-                        console.error("Error solving final ODE:", e);
-                    }
                 }
                 return cleanSolveResult(ode_sol);
             }
@@ -11799,6 +12718,7 @@ function reduceToExactDiff(P, Q, dPy, dQx) {
 
 function linearODEsolver(input, allowIntegrate = false) {
     try {
+        input = input.replace(/\bconst_e\b/g, 'e');
         let eq = input.split('=').join('-(') + ')';
         eq = convertTrigReciprocals(eq);
         let eqExpr = nerdamer(eq).simplify().toString();
@@ -11881,11 +12801,11 @@ function reduceToLinear(problem) {
         let bernoulliTerm = null;
         let n = null;
 
-        if (exp1 === '1' && exp2 !== '1' && exp2 !== '0') {
+        if (exp1 === '1' && exp2 !== '1' && exp2 !== '0' && !exp2.includes('y') && !exp2.includes('x')) {
             linearTerm = term1;
             bernoulliTerm = term2;
             n = exp2;
-        } else if (exp2 === '1' && exp1 !== '1' && exp1 !== '0') {
+        } else if (exp2 === '1' && exp1 !== '1' && exp1 !== '0' && !exp1.includes('y') && !exp1.includes('x')) {
             linearTerm = term2;
             bernoulliTerm = term1;
             n = exp1;
@@ -14706,6 +15626,15 @@ function formatNerdamerMatrixToBMatrix(M) {
 if (typeof nerdamer !== 'undefined' && typeof nerdamer.getCore === 'function') {
     const core = nerdamer.getCore();
 
+    // Prevent matrix elements from collapsing to a flat vector when evaluated
+    const originalEvaluate = core.Expression.prototype.evaluate;
+    core.Expression.prototype.evaluate = function () {
+        if (arguments.length === 0 && this.symbol instanceof core.Matrix) {
+            return this.evaluate(this.symbol.toString());
+        }
+        return originalEvaluate.apply(this, arguments);
+    };
+
     core.PARSER.functions.mag = [function (x) {
         return core.PARSER.functions.abs[0](x);
     }, 1];
@@ -15487,4 +16416,12 @@ function extractVectors(str) {
         idx++;
     }
     return results;
+}
+
+if (typeof window !== 'undefined') {
+    window.getInnermostTemplatePart = getInnermostTemplatePart;
+    window.getOutermostTemplate = getOutermostTemplate;
+    window.extractNumeratorBeforeSlash = extractNumeratorBeforeSlash;
+    window.isAllowed = isAllowed;
+    window.tryDeleteLatexCommand = tryDeleteLatexCommand;
 }
