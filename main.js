@@ -316,9 +316,9 @@ if (typeof nerdamer !== 'undefined' && typeof nerdamer.getCore === 'function') {
                     let base = symbol.args[1];
                     let result;
                     if (base && base.toString() !== 'e') {
-                        result = core.PARSER.parse(`-(0.5772156649+log(${s}))/(${s}*log(${base.toString()}))`);
+                        result = core.PARSER.parse(`-(euler_gamma+log(${s}))/(${s}*log(${base.toString()}))`);
                     } else {
-                        result = core.PARSER.parse(`-(0.5772156649+log(${s}))/${s}`);
+                        result = core.PARSER.parse(`-(euler_gamma+log(${s}))/${s}`);
                     }
                     result = core.PARSER.multiply(new core.Symbol(symbol.multiplier), result);
                     return result;
@@ -387,6 +387,78 @@ function replaceBesselWithPlaceholders(str) {
     return { processed: str, placeholders };
 }
 
+function replaceLaplaceWithPlaceholders(str) {
+    let placeholders = [];
+    let counter = 0;
+
+    const fns = [
+        { name: 'ilaplace', isInverse: true, defaultVar: 't' },
+        { name: 'ilt', isInverse: true, defaultVar: 't' },
+        { name: 'laplace', isInverse: false, defaultVar: 's' }
+    ];
+
+    for (let fn of fns) {
+        let regex = new RegExp(`\\b${fn.name}\\(`, 'g');
+        let match;
+        while ((match = regex.exec(str)) !== null) {
+            let startIndex = match.index;
+            let bracketCount = 1;
+            let j = startIndex + fn.name.length + 1;
+            while (j < str.length && bracketCount > 0) {
+                if (str[j] === '(') bracketCount++;
+                else if (str[j] === ')') bracketCount--;
+                j++;
+            }
+            if (bracketCount === 0) {
+                let fullMatch = str.slice(startIndex, j);
+                let inside = str.slice(startIndex + fn.name.length + 1, j - 1);
+
+                let args = [];
+                let current = "";
+                let depth = 0;
+                for (let k = 0; k < inside.length; k++) {
+                    let c = inside[k];
+                    if (c === '(' || c === '{') depth++;
+                    else if (c === ')' || c === '}') depth--;
+                    else if (c === ',' && depth === 0) {
+                        args.push(current);
+                        current = "";
+                        continue;
+                    }
+                    current += c;
+                }
+                args.push(current);
+
+                let expr = args[0] || "";
+                let targetVar = fn.defaultVar;
+                if (args.length >= 3 && args[2]) {
+                    targetVar = args[2].trim();
+                }
+
+                // Recursively convert the inside expression to LaTeX
+                let expr_latex = nerdamer.convertToLaTeX(expr.trim());
+
+                let placeholder = `LAPLACEPLACEHOLDER${counter++}`;
+                let latex = "";
+                if (fn.isInverse) {
+                    latex = `\\mathcal{L}^{-1}\\left\\{${expr_latex}\\right\\}(${targetVar})`;
+                } else {
+                    latex = `\\mathcal{L}\\left\\{${expr_latex}\\right\\}(${targetVar})`;
+                }
+
+                placeholders.push({
+                    placeholder: placeholder,
+                    latex: latex
+                });
+
+                str = str.replace(fullMatch, placeholder);
+                regex.lastIndex = 0;
+            }
+        }
+    }
+    return { processed: str, placeholders };
+}
+
 if (typeof nerdamer !== 'undefined' && typeof nerdamer.convertToLaTeX === 'function') {
     const originalConvertToLaTeX = nerdamer.convertToLaTeX;
     nerdamer.convertToLaTeX = function (expression, option) {
@@ -402,6 +474,10 @@ if (typeof nerdamer !== 'undefined' && typeof nerdamer.convertToLaTeX === 'funct
         // Replace Bessel functions with placeholders to bypass Nerdamer parser limitations
         let besselResult = replaceBesselWithPlaceholders(cleanedExpression);
         cleanedExpression = besselResult.processed;
+
+        // Replace Laplace/ILT functions with placeholders
+        let laplaceResult = replaceLaplaceWithPlaceholders(cleanedExpression);
+        cleanedExpression = laplaceResult.processed;
 
         try {
             let latex = "";
@@ -419,6 +495,11 @@ if (typeof nerdamer !== 'undefined' && typeof nerdamer.convertToLaTeX === 'funct
                     opt = 'decimal';
                 }
                 latex = originalConvertToLaTeX.call(nerdamer, cleanedExpression, opt);
+            }
+
+            // Restore Laplace/ILT functions in the LaTeX output
+            for (let ph of laplaceResult.placeholders) {
+                latex = latex.replaceAll(ph.placeholder, ph.latex);
             }
 
             // Restore Bessel functions in the LaTeX output
@@ -921,6 +1002,7 @@ function katexFormat(input) {
     latex = replaceIntegrateWithInt(latex);
     latex = cleanLatexOperators(latex);
     latex = replaceLaplaceLaTeX(latex);
+    latex = latex.replace(/euler(?:_|\\_)?\{?gamma\}?/gi, '\\gamma');
 
     // Post-process slash fractions and asterisks
     latex = postProcessLaTeX(latex);
@@ -981,6 +1063,7 @@ function dxdykatexFormat(input) {
     latex = replaceIntegrateWithInt(latex);
     latex = cleanLatexOperators(latex);
     latex = replaceLaplaceLaTeX(latex);
+    latex = latex.replace(/euler(?:_|\\_)?\{?gamma\}?/gi, '\\gamma');
 
     console.log(`dxdykatexFormat(${input}): ${latex}`);
     return latex;
@@ -1218,7 +1301,9 @@ function renderKatex(expr, el, options = {}) {
         "\\csc": "\\operatorname{cosec}",
         "\\csch": "\\operatorname{cosech}",
         "\\acsc": "\\operatorname{cosec}^{-1}",
-        "\\acsch": "\\operatorname{cosech}^{-1}"
+        "\\acsch": "\\operatorname{cosech}^{-1}",
+        "\\sech": "\\operatorname{sech}",
+        "\\asech": "\\operatorname{sech}^{-1}"
     };
     const mergedOptions = Object.assign({
         throwOnError: false,
@@ -1528,7 +1613,7 @@ function detectODEVariables(userInput) {
         depVar = primeMatch[1];
         let vars = [];
         let wordRegex = /\b[a-zA-Z_][a-zA-Z0-9_]*\b/g;
-        let exclude = ['e', 'pi', 'i', 'sin', 'cos', 'tan', 'cot', 'sec', 'csc', 'sinh', 'cosh', 'tanh', 'ln', 'log', 'exp', 'diff', 'integrate', 'laplace', 'ilaplace', 'ilt'];
+        let exclude = ['e', 'pi', 'i', 'sin', 'cos', 'tan', 'cot', 'sec', 'csc', 'sinh', 'cosh', 'tanh', 'ln', 'log', 'exp', 'diff', 'integrate', 'laplace', 'ilaplace', 'ilt', 'euler_gamma'];
         let m;
         while ((m = wordRegex.exec(userInput)) !== null) {
             let w = m[0].toLowerCase();
@@ -2944,11 +3029,11 @@ function preprocessLaplace(latex) {
     latex = latex.replace(/laplace\(\s*\\?(?:log|ln)(?:_\{?([a-zA-Z0-9]+)\}?)?\(?\{?([a-zA-Z0-9]+)\}?\)?,\s*\2,\s*([a-zA-Z0-9]+)\)/g, (match, baseVar, tVar, sVar) => {
         if (baseVar) {
             if (baseVar === 'e') {
-                return `-(0.5772156649+log(${sVar}))/${sVar}`;
+                return `-(euler_gamma+log(${sVar}))/${sVar}`;
             }
-            return `-(0.5772156649+log(${sVar}))/(${sVar}*log(${baseVar}))`;
+            return `-(euler_gamma+log(${sVar}))/(${sVar}*log(${baseVar}))`;
         } else {
-            return `-(0.5772156649+log(${sVar}))/${sVar}`;
+            return `-(euler_gamma+log(${sVar}))/${sVar}`;
         }
     });
 
@@ -3624,11 +3709,11 @@ function translateLatexToNerdamer(latex) {
     result = result.replace(/laplace\((?:log|ln)\(([a-zA-Z0-9]+)(?:,\s*([a-zA-Z0-9]+))?\),\s*\1,\s*([a-zA-Z0-9]+)\)/g, (match, tVar, baseVar, sVar) => {
         if (baseVar) {
             if (baseVar === 'e') {
-                return `-(0.5772156649+log(${sVar}))/${sVar}`;
+                return `-(euler_gamma+log(${sVar}))/${sVar}`;
             }
-            return `-(0.5772156649+log(${sVar}))/(${sVar}*log(${baseVar}))`;
+            return `-(euler_gamma+log(${sVar}))/(${sVar}*log(${baseVar}))`;
         } else {
-            return `-(0.5772156649+log(${sVar}))/${sVar}`;
+            return `-(euler_gamma+log(${sVar}))/${sVar}`;
         }
     });
     return result;
@@ -5846,7 +5931,7 @@ function handleMathInput() {
             let partText = math.value.substring(part.start, pos - 1);
             let openCount = (partText.match(/\(/g) || []).length;
             let closeCount = (partText.match(/\)/g) || []).length;
-            if (openCount <= closeCount) {
+            if (openCount > 0 && openCount <= closeCount) {
                 // Move the ')' to the end of the template
                 let left = math.value.substring(0, pos - 1);
                 let middle = math.value.substring(pos, template.end);
@@ -5979,43 +6064,57 @@ function handleMathInput() {
     }
     else if (!replaced && (textBefore.endsWith('\\sin{h') || textBefore.endsWith('\\sin{}h'))) {
         let len = textBefore.endsWith('\\sin{h') ? 6 : 7;
-        math.value = math.value.substring(0, pos - len) + '\\sinh{}' + math.value.substring(pos);
+        let rest = math.value.substring(pos);
+        if (textBefore.endsWith('\\sin{h') && rest.startsWith('}')) rest = rest.substring(1);
+        math.value = math.value.substring(0, pos - len) + '\\sinh{}' + rest;
         newCursor = pos - len + 6;
         replaced = true;
     }
     else if (!replaced && (textBefore.endsWith('\\cos{h') || textBefore.endsWith('\\cos{}h'))) {
         let len = textBefore.endsWith('\\cos{h') ? 6 : 7;
-        math.value = math.value.substring(0, pos - len) + '\\cosh{}' + math.value.substring(pos);
+        let rest = math.value.substring(pos);
+        if (textBefore.endsWith('\\cos{h') && rest.startsWith('}')) rest = rest.substring(1);
+        math.value = math.value.substring(0, pos - len) + '\\cosh{}' + rest;
         newCursor = pos - len + 6;
         replaced = true;
     }
     else if (!replaced && (textBefore.endsWith('\\tan{h') || textBefore.endsWith('\\tan{}h'))) {
         let len = textBefore.endsWith('\\tan{h') ? 6 : 7;
-        math.value = math.value.substring(0, pos - len) + '\\tanh{}' + math.value.substring(pos);
+        let rest = math.value.substring(pos);
+        if (textBefore.endsWith('\\tan{h') && rest.startsWith('}')) rest = rest.substring(1);
+        math.value = math.value.substring(0, pos - len) + '\\tanh{}' + rest;
         newCursor = pos - len + 6;
         replaced = true;
     }
     else if (!replaced && (textBefore.endsWith('\\sec{h') || textBefore.endsWith('\\sec{}h'))) {
         let len = textBefore.endsWith('\\sec{h') ? 6 : 7;
-        math.value = math.value.substring(0, pos - len) + '\\sech{}' + math.value.substring(pos);
+        let rest = math.value.substring(pos);
+        if (textBefore.endsWith('\\sec{h') && rest.startsWith('}')) rest = rest.substring(1);
+        math.value = math.value.substring(0, pos - len) + '\\sech{}' + rest;
         newCursor = pos - len + 6;
         replaced = true;
     }
     else if (!replaced && (textBefore.endsWith('\\csc{h') || textBefore.endsWith('\\csc{}h'))) {
         let len = textBefore.endsWith('\\csc{h') ? 6 : 7;
-        math.value = math.value.substring(0, pos - len) + '\\csch{}' + math.value.substring(pos);
+        let rest = math.value.substring(pos);
+        if (textBefore.endsWith('\\csc{h') && rest.startsWith('}')) rest = rest.substring(1);
+        math.value = math.value.substring(0, pos - len) + '\\csch{}' + rest;
         newCursor = pos - len + 6;
         replaced = true;
     }
     else if (!replaced && (textBefore.endsWith('\\cosec{h') || textBefore.endsWith('\\cosec{}h'))) {
         let len = textBefore.endsWith('\\cosec{h') ? 8 : 9;
-        math.value = math.value.substring(0, pos - len) + '\\csch{}' + math.value.substring(pos);
+        let rest = math.value.substring(pos);
+        if (textBefore.endsWith('\\cosec{h') && rest.startsWith('}')) rest = rest.substring(1);
+        math.value = math.value.substring(0, pos - len) + '\\csch{}' + rest;
         newCursor = pos - len + 6;
         replaced = true;
     }
     else if (!replaced && (textBefore.endsWith('\\cot{h') || textBefore.endsWith('\\cot{}h'))) {
         let len = textBefore.endsWith('\\cot{h') ? 6 : 7;
-        math.value = math.value.substring(0, pos - len) + '\\coth{}' + math.value.substring(pos);
+        let rest = math.value.substring(pos);
+        if (textBefore.endsWith('\\cot{h') && rest.startsWith('}')) rest = rest.substring(1);
+        math.value = math.value.substring(0, pos - len) + '\\coth{}' + rest;
         newCursor = pos - len + 6;
         replaced = true;
     }
@@ -7092,7 +7191,7 @@ if (typeof document !== 'undefined') {
             });
             math.addEventListener('keydown', function (e) {
                 if (e.key === '{' || e.key === '}' || e.key === ')' || e.key === ',' || e.key === '&' || e.key === ';') {
-                    const pos = this.selectionStart;
+                    let pos = this.selectionStart;
                     const val = this.value;
                     if (e.key === ';') {
                         const outermost = getOutermostTemplate(val, pos);
@@ -7101,58 +7200,109 @@ if (typeof document !== 'undefined') {
                             this.setSelectionRange(jumpPos, jumpPos);
                             onSelectionChange();
                         }
-                    } else {
-                        const { template, partIndex } = getInnermostTemplatePart(val, pos);
-                        if (template && partIndex !== -1) {
-                            if (e.key === ',' && template.type === 'matrix') {
-                                // Allow comma inside matrix cells
-                            } else if (e.key === '&' && template.type === 'matrix') {
-                                // Allow & inside matrix cells
-                            } else if (e.key === ')') {
-                                // Typeover/jump-over support for closing parenthesis if the next character is already ')'
-                                if (val[pos] === ')') {
-                                    e.preventDefault();
-                                    this.setSelectionRange(pos + 1, pos + 1);
-                                    onSelectionChange();
-                                }
-                            } else if (e.key === '{') {
+                    }
+                    // Check if we are at the end of a template part (i.e. immediately before '}' or ')')
+                    if (val[pos] === '}' || val[pos] === ')') {
+                        let nextChar = val[pos];
+                        if (e.key === ',') {
+                            // If typing ',', jump past next '}' or ')' first.
+                            // If followed by an existing comma, jump past it too.
+                            let match = val.substring(pos).match(/^([})])\s*,\s*/);
+                            if (match) {
+                                e.preventDefault();
+                                let jumpLen = match[0].length;
+                                pos = pos + jumpLen;
+                                this.setSelectionRange(pos, pos);
+                                onSelectionChange();
+                            } else {
                                 e.preventDefault();
                                 const before = val.substring(0, pos);
                                 const after = val.substring(this.selectionEnd);
-                                this.value = before + '(' + after;
+                                this.value = before + nextChar + ',' + after.substring(1);
+                                pos = pos + 2;
+                                this.setSelectionRange(pos, pos);
+                                this.dispatchEvent(new Event('input'));
+                            }
+                        } else if (e.key === '{') {
+                            // If typing '{' and followed by another '{' (like '}{'), jump past them.
+                            let match = val.substring(pos).match(/^([})])\s*\{\s*/);
+                            if (match) {
+                                e.preventDefault();
+                                let jumpLen = match[0].length;
+                                pos = pos + jumpLen;
+                                this.setSelectionRange(pos, pos);
+                                onSelectionChange();
+                            }
+                        } else if (e.key === ')') {
+                            // If typing ')' and followed by another ')' (like '})' or '))'), jump past them.
+                            let match = val.substring(pos).match(/^([})])\s*\)/);
+                            if (match) {
+                                e.preventDefault();
+                                let jumpLen = match[0].length;
+                                pos = pos + jumpLen;
+                                this.setSelectionRange(pos, pos);
+                                onSelectionChange();
+                            } else {
+                                e.preventDefault();
+                                const before = val.substring(0, pos);
+                                const after = val.substring(this.selectionEnd);
+                                this.value = before + nextChar + ')' + after.substring(1);
+                                pos = pos + 2;
+                                this.setSelectionRange(pos, pos);
+                                this.dispatchEvent(new Event('input'));
+                            }
+                        }
+                    }
+                    const { template, partIndex } = getInnermostTemplatePart(val, pos);
+                    if (template && partIndex !== -1) {
+                        if (e.key === ',' && template.type === 'matrix') {
+                            // Allow comma inside matrix cells
+                        } else if (e.key === '&' && template.type === 'matrix') {
+                            // Allow & inside matrix cells
+                        } else if (e.key === ')') {
+                            // Typeover/jump-over support for closing parenthesis if the next character is already ')'
+                            if (val[pos] === ')') {
+                                e.preventDefault();
+                                this.setSelectionRange(pos + 1, pos + 1);
+                                onSelectionChange();
+                            }
+                        } else if (e.key === '{') {
+                            e.preventDefault();
+                            const before = val.substring(0, pos);
+                            const after = val.substring(this.selectionEnd);
+                            this.value = before + '(' + after;
+                            this.setSelectionRange(pos + 1, pos + 1);
+                            this.dispatchEvent(new Event('input'));
+                        } else if (e.key === '}') {
+                            let part = template.parts[partIndex];
+                            let partText = val.substring(part.start, pos);
+                            let openCount = (partText.match(/\(/g) || []).length;
+                            let closeCount = (partText.match(/\)/g) || []).length;
+                            if (openCount > closeCount) {
+                                e.preventDefault();
+                                const before = val.substring(0, pos);
+                                const after = val.substring(this.selectionEnd);
+                                this.value = before + ')' + after;
                                 this.setSelectionRange(pos + 1, pos + 1);
                                 this.dispatchEvent(new Event('input'));
-                            } else if (e.key === '}') {
-                                let part = template.parts[partIndex];
-                                let partText = val.substring(part.start, pos);
-                                let openCount = (partText.match(/\(/g) || []).length;
-                                let closeCount = (partText.match(/\)/g) || []).length;
-                                if (openCount > closeCount) {
-                                    e.preventDefault();
-                                    const before = val.substring(0, pos);
-                                    const after = val.substring(this.selectionEnd);
-                                    this.value = before + ')' + after;
-                                    this.setSelectionRange(pos + 1, pos + 1);
-                                    this.dispatchEvent(new Event('input'));
-                                } else {
-                                    // All parentheses inside are closed. Jump past the closing brace '}' of the part.
-                                    e.preventDefault();
-                                    let jumpPos = part.end + 1;
-                                    if (jumpPos <= val.length) {
-                                        this.setSelectionRange(jumpPos, jumpPos);
-                                        onSelectionChange();
-                                    }
-                                }
-                            } else if (e.key === '&') {
-                                e.preventDefault();
-                                const before = val.substring(0, pos);
-                                const after = val.substring(this.selectionEnd);
-                                this.value = before + 'and' + after;
-                                this.setSelectionRange(pos + 3, pos + 3);
-                                this.dispatchEvent(new Event('input'));
                             } else {
-                                // Let comma be typed normally inside templates
+                                // All parentheses inside are closed. Jump past the closing brace '}' of the part.
+                                e.preventDefault();
+                                let jumpPos = part.end + 1;
+                                if (jumpPos <= val.length) {
+                                    this.setSelectionRange(jumpPos, jumpPos);
+                                    onSelectionChange();
+                                }
                             }
+                        } else if (e.key === '&') {
+                            e.preventDefault();
+                            const before = val.substring(0, pos);
+                            const after = val.substring(this.selectionEnd);
+                            this.value = before + 'and' + after;
+                            this.setSelectionRange(pos + 3, pos + 3);
+                            this.dispatchEvent(new Event('input'));
+                        } else {
+                            // Let comma be typed normally inside templates
                         }
                     }
                 }
@@ -8433,7 +8583,7 @@ function formatDecimalStringToLaTeX(decStr) {
 function getDecimalValue(exprStr) {
     if (!exprStr || typeof exprStr !== 'string') return null;
     try {
-        let valText = nerdamer(exprStr).evaluate().text('decimals');
+        let valText = nerdamer(exprStr.replace(/\beuler_gamma\b/g, '0.57721566490153286')).evaluate().text('decimals');
         let cleaned = valText.toLowerCase().replace(/[\d\s.+\-*\/()e]/g, '');
         if (cleaned === 'i' || cleaned === '') {
             let parsed = parseComplexDecimal(valText);
@@ -8486,8 +8636,10 @@ function formatRawMathToLaTeX(str) {
 
     if (!str.includes('\\') && !str.includes('{') && !str.includes('}')) {
         try {
-            if (!str.includes('secondroot') && !str.includes('cuberoot') && !str.includes('fourthroot') && !str.includes('fifthroot') && !str.includes('sixthroot') && !str.includes('seventhroot') && !str.includes('eighthroot') && !str.includes('ninthroot') && !str.includes('tenthroot')) {
-                return nerdamer(str).toTeX();
+            if (!/\b(laplace|ilaplace|ilt)\b/i.test(str)) {
+                if (!str.includes('secondroot') && !str.includes('cuberoot') && !str.includes('fourthroot') && !str.includes('fifthroot') && !str.includes('sixthroot') && !str.includes('seventhroot') && !str.includes('eighthroot') && !str.includes('ninthroot') && !str.includes('tenthroot')) {
+                    return nerdamer(str).toTeX();
+                }
             }
         } catch (e) {
             // fallback to manual regex conversions
@@ -10512,17 +10664,17 @@ function mathSolver(user_input, rawDisplayInput = "") {
                             simplified = expr;
                         } else {
                             try {
-                                evaluated = expr.evaluate();
+                                evaluated = nerdamer(processedStmt).evaluate();
                             } catch (e) {
                                 evaluated = expr;
                             }
                             try {
-                                simplified = processedStmt.includes('partfrac') ? expr : expr.simplify();
+                                simplified = processedStmt.includes('partfrac') ? expr : nerdamer(processedStmt).simplify();
                                 if (simplified.toString() !== expr.toString()) {
                                     let vars = expr.variables();
                                     if (vars.length > 0) {
-                                        let valExpr = nerdamer(expr.toString());
-                                        let valSimp = nerdamer(simplified.toString());
+                                        let valExpr = nerdamer(expr.toString().replace(/\beuler_gamma\b/g, '0.57721566490153286'));
+                                        let valSimp = nerdamer(simplified.toString().replace(/\beuler_gamma\b/g, '0.57721566490153286'));
                                         for (let v of vars) {
                                             valExpr = valExpr.sub(v, '0.5');
                                             valSimp = valSimp.sub(v, '0.5');
@@ -12406,7 +12558,8 @@ function directExactSolver(input, allowIF = true) {
             }
             let u = TotalIntegration(P, 'x', 1);
             let duy = nerdamer(`diff(${u}, y)`).sub('log(const_e)', '1').toString();
-            u = TotalIntegration(`(${Q})-(${duy})`, 'y', 1) + '+' + '(' + u + ')';
+            let diff_expr = nerdamer(`(${Q})-(${duy})`).sub('log(const_e)', '1').expand().simplify().toString();
+            u = TotalIntegration(diff_expr, 'y', 1) + '+' + '(' + u + ')';
             u = nerdamer(u).sub('log(const_e)', '1').simplify().toString();
             u = cleanSolveResult(u);
             return u;
@@ -12438,7 +12591,8 @@ function directExactSolver(input, allowIF = true) {
                 let N = nerdamer(Q).multiply(IF).sub('log(const_e)', '1').simplify().toString();
                 let u = TotalIntegration(M, 'x', 1);
                 let duy = nerdamer(`diff(${u}, y)`).sub('log(const_e)', '1').toString();
-                u = TotalIntegration(`(${N})-(${duy})`, 'y', 1) + '+' + '(' + u + ')';
+                let diff_expr = nerdamer(`(${N})-(${duy})`).sub('log(const_e)', '1').expand().simplify().toString();
+                u = TotalIntegration(diff_expr, 'y', 1) + '+' + '(' + u + ')';
                 u = nerdamer(u).sub('log(const_e)', '1').simplify().toString();
                 u = cleanSolveResult(u);
 
@@ -12480,7 +12634,8 @@ function directExactSolver(input, allowIF = true) {
                 let N = nerdamer(Q).multiply(IF).sub('log(const_e)', '1').simplify().toString();
                 let u = TotalIntegration(M, 'x', 1);
                 let duy = nerdamer(`diff(${u}, y)`).sub('log(const_e)', '1').toString();
-                u = TotalIntegration(`(${N})-(${duy})`, 'y', 1) + '+' + '(' + u + ')';
+                let diff_expr = nerdamer(`(${N})-(${duy})`).sub('log(const_e)', '1').expand().simplify().toString();
+                u = TotalIntegration(diff_expr, 'y', 1) + '+' + '(' + u + ')';
                 u = nerdamer(u).sub('log(const_e)', '1').simplify().toString();
                 u = cleanSolveResult(u);
 
@@ -12552,7 +12707,8 @@ function exactDifferTest(input) {
                 }
                 let u = TotalIntegration(M, 'x', 1);
                 let duy = nerdamer(`diff(${u}, y)`).toString();
-                u = TotalIntegration(`(${N})-(${duy})`, 'y', 1) + '+' + '(' + u + ')';
+                let diff_expr = nerdamer(`(${N})-(${duy})`).expand().simplify().toString();
+                u = TotalIntegration(diff_expr, 'y', 1) + '+' + '(' + u + ')';
                 sol = nerdamer(u).simplify().toString();
                 sol = cleanSolveResult(sol);
                 console.log(`The solution of excat differential ${input}: ${sol}`);
@@ -12581,7 +12737,8 @@ function exactDifferTest(input) {
                 }
                 let u = TotalIntegration(M, 'x', 1);
                 let duy = nerdamer(`diff(${u}, y)`).toString();
-                u = TotalIntegration(`(${N})-(${duy})`, 'y', 1) + '+' + '(' + u + ')';
+                let diff_expr = nerdamer(`(${N})-(${duy})`).expand().simplify().toString();
+                u = TotalIntegration(diff_expr, 'y', 1) + '+' + '(' + u + ')';
                 sol = nerdamer(u).simplify().toString();
                 sol = cleanSolveResult(sol);
                 console.log(`The solution of excat differential ${input}: ${sol}`);
@@ -12609,7 +12766,8 @@ function exactDifferTest(input) {
                 }
                 let u = TotalIntegration(M, 'x', 1);
                 let duy = nerdamer(`diff(${u}, y)`).toString();
-                u = TotalIntegration(`(${N})-(${duy})`, 'y', 1) + '+' + '(' + u + ')';
+                let diff_expr = nerdamer(`(${N})-(${duy})`).expand().simplify().toString();
+                u = TotalIntegration(diff_expr, 'y', 1) + '+' + '(' + u + ')';
                 sol = nerdamer(u).simplify().toString();
                 sol = cleanSolveResult(sol);
                 console.log(`The solution of exact differential ${input}: ${sol}`);
@@ -12654,7 +12812,8 @@ function reduceToExactDiff(P, Q, dPy, dQx) {
         let N = nerdamer(Q).multiply(IF).sub('log(const_e)', '1').simplify().toString();
         let u = TotalIntegration(M, 'x', 1);
         let duy = nerdamer(`diff(${u}, y)`).sub('log(const_e)', '1').toString();
-        u = TotalIntegration(`(${N})-(${duy})`, 'y', 1) + '+' + '(' + u + ')';
+        let diff_expr = nerdamer(`(${N})-(${duy})`).sub('log(const_e)', '1').expand().simplify().toString();
+        u = TotalIntegration(diff_expr, 'y', 1) + '+' + '(' + u + ')';
         u = nerdamer(u).sub('log(const_e)', '1').simplify().toString();
         u = cleanSolveResult(u);
 
@@ -12694,7 +12853,8 @@ function reduceToExactDiff(P, Q, dPy, dQx) {
         let N = nerdamer(Q).multiply(IF).sub('log(const_e)', '1').simplify().toString();
         let u = TotalIntegration(M, 'x', 1);
         let duy = nerdamer(`diff(${u}, y)`).sub('log(const_e)', '1').toString();
-        u = TotalIntegration(`(${N})-(${duy})`, 'y', 1) + '+' + '(' + u + ')';
+        let diff_expr = nerdamer(`(${N})-(${duy})`).sub('log(const_e)', '1').expand().simplify().toString();
+        u = TotalIntegration(diff_expr, 'y', 1) + '+' + '(' + u + ')';
         u = nerdamer(u).sub('log(const_e)', '1').simplify().toString();
         u = cleanSolveResult(u);
 
