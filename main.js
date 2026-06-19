@@ -159,20 +159,66 @@ function convertTrigReciprocals(str) {
     return str;
 }
 
+function splitImplicitFunctions(str) {
+    const functions = [
+        'besselj', 'bessely', 'acosech', 'acosec', 'cosech', 'acoth', 'asech', 'acsch', 'cosec', 'asinh',
+        'acosh', 'atanh', 'squareroot', 'secondroot', 'secndroot', 'thirdroot', 'cuberoot', 'fourthroot',
+        'forthroot', 'fifthroot', 'sixthroot', 'seventhroot', 'eighthroot', 'ninthroot', 'tenthroot',
+        'eigenvalues', 'eigenvectors', 'continued_fraction', 'factorial', 'dfactorial', 'conjugate',
+        'realpart', 'imagpart', 'polarform', 'rectform', 'normalize', 'integrate', 'multiply', 'transpose',
+        'lcm', 'gcd', 'roots', 'coeffs', 'sqcomp', 'log10', 'simplify', 'pfactor', 'sinh', 'cosh',
+        'tanh', 'sech', 'csch', 'coth', 'asin', 'acos', 'atan', 'acot', 'asec', 'acsc', 'diff',
+        'pdiff', 'limit', 'sum', 'product', 'defint', 'nrt', 'abs', 'fact', 'matrix', 'vector',
+        'rref', 'basis', 'trace', 'det', 'inverse', 'invert', 'identity', 'null', 'mean', 'mode',
+        'median', 'zscore', 'smpvar', 'variance', 'smpstdev', 'stdev', 'factor', 'partfrac', 'deg',
+        'min', 'max', 'floor', 'ceil', 'Si', 'Ci', 'Ei', 'rect', 'step', 'sinc', 'Shi', 'Chi',
+        'mod', 'erf', 'sign', 'round', 'expand', 'fib', 'tri', 'parens', 'line', 'sin', 'cos',
+        'tan', 'cot', 'sec', 'csc', 'log', 'ln', 'exp', 'sqrt'
+    ];
+    functions.sort((a, b) => b.length - a.length);
+
+    function splitWord(word) {
+        let lower = word.toLowerCase();
+        if (functions.includes(lower)) {
+            return word;
+        }
+        for (let fn of functions) {
+            if (lower.endsWith(fn)) {
+                let idx = word.length - fn.length;
+                let prefix = word.substring(0, idx);
+                let suffix = word.substring(idx);
+                return splitWord(prefix) + '*' + suffix;
+            }
+            if (lower.startsWith(fn)) {
+                let idx = fn.length;
+                let prefix = word.substring(0, idx);
+                let suffix = word.substring(idx);
+                return prefix + '*' + splitWord(suffix);
+            }
+        }
+        return word;
+    }
+
+    return str.replace(/\b[a-zA-Z]+\b/g, splitWord);
+}
+
 // Helper to insert implicit multiplication stars (e.g. 3y^2 -> 3*y^2, x(y+1) -> x*(y+1))
 // This prevents Nerdamer's tokenizer from creating unified tokens like "3y"
 // which causes it to treat the whole term as the number 3, ignoring the variable y
 function insertImplicitStars(str) {
     if (!str || typeof str !== 'string') return str;
 
+    // Run digit-letter boundaries first to allow correct word boundaries in splitImplicitFunctions
+    str = str.replace(/(\d+)\s*([a-zA-Z\(])/g, '$1*$2');
+
+    str = splitImplicitFunctions(str);
+
     return str
-        // Insert star between a number and a variable/paren (e.g. 3y -> 3*y, 3( -> 3*()
-        .replace(/(\d+)\s*([a-zA-Z\(])/g, '$1*$2')
         // Insert star between a closing paren and an opening paren (e.g. )( -> )*( )
         .replace(/(\))\s*(\()/g, '$1*$2')
         // Insert star between a closing paren and a variable/number (e.g. )y -> )*y
         .replace(/(\))\s*([a-zA-Z\d])/g, '$1*$2')
-        .replace(/\b(?!besselj|bessely|sin|cos|tan|cot|sec|csc|cosec|asin|acos|atan|acot|asec|acsc|acosec|log|ln|exp|sinh|cosh|tanh|sech|csch|cosech|coth|asinh|acosh|atanh|asech|acsch|acoth|sqrt|integrate|diff|pdiff|limit|sum|product|defint|nrt|abs|fact|squareroot|secondroot|secndroot|thirdroot|cuberoot|fourthroot|forthroot|fifthroot|sixthroot|seventhroot|eighthroot|ninthroot|tenthroot|multiply|matrix|vector|eigenvalues|eigenvectors|rref|basis|trace|transpose|det|inverse|invert|identity|null|conjugate|arg|realpart|imagpart|polarform|rectform|dot|cross|mag|normalize|angle|eq|lt|gt|lte|gte|laplace|ilaplace|ilt|mean|mode|median|zscore|smpvar|variance|smpstdev|stdev|factor|partfrac|lcm|gcd|roots|coeffs|deg|sqcomp|log10|min|max|floor|ceil|simplify|Si|Ci|Ei|rect|step|sinc|Shi|Chi|factorial|dfactorial|mod|erf|sign|round|pfactor|expand|fib|tri|parens|line|continued_fraction)([a-zA-Z]+)(\()/g, '$1*$2')
+        .replace(/\b(?!besselj|bessely|sin|cos|tan|cot|sec|csc|cosec|asin|acos|atan|acot|asec|acsc|acosec|log|ln|exp|sinh|cosh|tanh|sech|csch|cosech|coth|asinh|acosh|atanh|asech|acsch|acoth|sqrt|integrate|diff|pdiff|limit|sum|product|defint|nrt|abs|fact|squareroot|secondroot|secndroot|thirdroot|cuberoot|fourthroot|forthroot|fifthroot|sixthroot|seventhroot|eighthroot|ninthroot|tenthroot|multiply|matrix|vector|eigenvalues|eigenvectors|rref|basis|trace|transpose|det|inverse|invert|identity|null|conjugate|arg|realpart|imagpart|polarform|rectform|dot|cross|mag|normalize|angle|eq|lt|gt|lte|gte|laplace|ilaplace|ilt|mean|mode|median|zscore|smpvar|variance|smpstdev|stdev|factor|partfrac|lcm|gcd|roots|coeffs|deg|sqcomp|log10|min|max|floor|ceil|simplify|Si|Ci|Ei|rect|step|sinc|Shi|Chi|factorial|dfactorial|mod|erf|sign|round|pfactor|expand|fib|tri|parens|line|continued_fraction)([a-zA-Z]+)(\((?!(?:[+-]?\d+(?:\.\d+)?|pi)\)))/g, '$1*$2')
         // Insert star between standalone variables x/y and subsequent variables/functions (e.g. xe^y -> x*e^y, xy -> x*y)
         .replace(/\b([xy])([a-zA-Z])/gi, (match, p1, p2) => p1 + '*' + p2);
 }
@@ -1608,6 +1654,13 @@ function detectODEVariables(userInput) {
         return { depVar, indVar };
     }
 
+    let diffMatch = userInput.match(/p?diff\(\s*([a-zA-Z])\s*,\s*([a-zA-Z])/);
+    if (diffMatch) {
+        depVar = diffMatch[1];
+        indVar = diffMatch[2];
+        return { depVar, indVar };
+    }
+
     let primeMatch = userInput.match(/\b([a-zA-Z])'+/);
     if (primeMatch) {
         depVar = primeMatch[1];
@@ -1684,8 +1737,54 @@ function getEquation() {
     userInput = preprocessLaplace(userInput);
 
     let originalUserInput = userInput;
+    userInput = insertImplicitStars(userInput);
     let partsTempForVar = splitStatements(userInput);
     let { depVar, indVar } = detectODEVariables(partsTempForVar[0] || userInput);
+
+    // Insert implicit stars specifically for detected single-character variables to prevent boundary detection issues during swapping
+    const MATH_FUNCTIONS = [
+        'besselj', 'bessely', 'acosech', 'acosec', 'cosech', 'acoth', 'asech', 'acsch', 'cosec', 'asinh',
+        'acosh', 'atanh', 'squareroot', 'secondroot', 'secndroot', 'thirdroot', 'cuberoot', 'fourthroot',
+        'forthroot', 'fifthroot', 'sixthroot', 'seventhroot', 'eighthroot', 'ninthroot', 'tenthroot',
+        'eigenvalues', 'eigenvectors', 'continued_fraction', 'factorial', 'dfactorial', 'conjugate',
+        'realpart', 'imagpart', 'polarform', 'rectform', 'normalize', 'integrate', 'multiply', 'transpose',
+        'lcm', 'gcd', 'roots', 'coeffs', 'sqcomp', 'log10', 'simplify', 'pfactor', 'sinh', 'cosh',
+        'tanh', 'sech', 'csch', 'coth', 'asin', 'acos', 'atan', 'acot', 'asec', 'acsc', 'diff',
+        'pdiff', 'limit', 'sum', 'product', 'defint', 'nrt', 'abs', 'fact', 'matrix', 'vector',
+        'rref', 'basis', 'trace', 'det', 'inverse', 'invert', 'identity', 'null', 'mean', 'mode',
+        'median', 'zscore', 'smpvar', 'variance', 'smpstdev', 'stdev', 'factor', 'partfrac', 'deg',
+        'min', 'max', 'floor', 'ceil', 'Si', 'Ci', 'Ei', 'rect', 'step', 'sinc', 'Shi', 'Chi',
+        'mod', 'erf', 'sign', 'round', 'expand', 'fib', 'tri', 'parens', 'line', 'sin', 'cos',
+        'tan', 'cot', 'sec', 'csc', 'log', 'ln', 'exp', 'sqrt'
+    ];
+    let masked = userInput;
+    let placeholders = [];
+    let sortedFuncs = [...MATH_FUNCTIONS].sort((a, b) => b.length - a.length);
+    for (let fn of sortedFuncs) {
+        let regex = new RegExp('\\b' + fn + '\\b', 'gi');
+        masked = masked.replace(regex, (match) => {
+            let ph = `__MATH_FUN_${placeholders.length}__`;
+            placeholders.push({ ph, match });
+            return ph;
+        });
+    }
+
+    if (depVar && depVar.length === 1) {
+        let esc = depVar.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        masked = masked.replace(new RegExp('\\b' + esc + '([a-zA-Z])', 'g'), esc + '*$1');
+        masked = masked.replace(new RegExp('([a-ce-zA-CE-Z])' + esc + '\\b', 'g'), '$1*' + esc);
+    }
+    if (indVar && indVar.length === 1 && indVar !== depVar) {
+        let esc = indVar.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        masked = masked.replace(new RegExp('\\b' + esc + '([a-zA-Z])', 'g'), esc + '*$1');
+        masked = masked.replace(new RegExp('([a-ce-zA-CE-Z])' + esc + '\\b', 'g'), '$1*' + esc);
+    }
+
+    for (let i = placeholders.length - 1; i >= 0; i--) {
+        masked = masked.replaceAll(placeholders[i].ph, placeholders[i].match);
+    }
+    userInput = masked;
+
     let odesSwapped = false;
     if (depVar !== 'y' || indVar !== 'x') {
         odesSwapped = true;
@@ -3049,6 +3148,9 @@ function preprocessLaplace(latex) {
 
 function translateLatexToNerdamer(latex) {
     if (!latex) return "";
+
+    // Replace escaped underscores (\_) with literal underscores (_) to avoid parser insertion of '*'
+    latex = latex.replace(/\\_/g, '_');
 
     // Clean empty/placeholder subscripts/superscripts (e.g. _{}, _{_}, _, ^{}, ^{_}, ^)
     latex = latex.replace(/([_^])\s*\{\s*(_)?\s*\}/g, '');
@@ -11781,6 +11883,90 @@ function singleOrderCheck(problem) {
 function resolveUnresolvedIntegrals(str, diffvar) {
     if (!str || typeof str !== 'string') return str;
 
+    class Fraction {
+        constructor(num, den = 1) {
+            if (den < 0) {
+                num = -num;
+                den = -den;
+            }
+            let g = Fraction.gcd(Math.abs(num), Math.abs(den));
+            this.num = num / g;
+            this.den = den / g;
+        }
+
+        static gcd(a, b) {
+            return b ? Fraction.gcd(b, a % b) : a;
+        }
+
+        add(other) {
+            return new Fraction(this.num * other.den + other.num * this.den, this.den * other.den);
+        }
+
+        sub(other) {
+            return new Fraction(this.num * other.den - other.num * this.den, this.den * other.den);
+        }
+
+        mul(other) {
+            return new Fraction(this.num * other.num, this.den * other.den);
+        }
+
+        div(other) {
+            return new Fraction(this.num * other.den, this.den * other.num);
+        }
+
+        toString() {
+            if (this.den === 1) return `${this.num}`;
+            return `${this.num}/${this.den}`;
+        }
+
+        static parse(str) {
+            if (str instanceof Fraction) return str;
+            if (typeof str === 'number') {
+                if (Number.isInteger(str)) return new Fraction(str, 1);
+                let s = str.toString();
+                if (s.includes('.')) {
+                    let parts = s.split('.');
+                    let decimals = parts[1].length;
+                    let den = Math.pow(10, decimals);
+                    let num = parseInt(parts[0] + parts[1]);
+                    return new Fraction(num, den);
+                }
+                return new Fraction(Math.round(str * 1000000), 1000000);
+            }
+            str = str.trim();
+            if (str.includes('/')) {
+                let parts = str.split('/');
+                return new Fraction(parseInt(parts[0]), parseInt(parts[1]));
+            }
+            if (str.includes('.')) {
+                let parts = str.split('.');
+                let decimals = parts[1].length;
+                let den = Math.pow(10, decimals);
+                let num = parseInt(parts[0] + parts[1]);
+                return new Fraction(num, den);
+            }
+            return new Fraction(parseInt(str), 1);
+        }
+    }
+
+    function solvePowerIntegral(aStr, bStr, varName) {
+        let a = Fraction.parse(aStr);
+        let b = Fraction.parse(bStr);
+
+        let power1 = b.add(new Fraction(2));
+        let power2 = b.add(new Fraction(1));
+
+        if (power1.num === 0 || power2.num === 0) {
+            return null;
+        }
+
+        let c1 = new Fraction(1).div(power1);
+        let c2 = a.div(power2);
+
+        let termStr = `(${varName}+(${a.toString()}))`;
+        return `((${c1.toString()})*${termStr}^(${power1.toString()})-(${c2.toString()})*${termStr}^(${power2.toString()}))`;
+    }
+
     // sech^2 -> tanh
     str = str.replace(new RegExp('integrate\\(sech\\((' + diffvar + ')\\)\\^2,\\s*' + diffvar + '\\)', 'g'), 'tanh($1)');
     str = str.replace(new RegExp('integrate\\(cosh\\((' + diffvar + ')\\)\\^\\(-2\\),\\s*' + diffvar + '\\)', 'g'), 'tanh($1)');
@@ -11792,6 +11978,87 @@ function resolveUnresolvedIntegrals(str, diffvar) {
     str = str.replace(new RegExp('integrate\\(sinh\\((' + diffvar + ')\\)\\^\\(-2\\),\\s*' + diffvar + '\\)', 'g'), '-coth($1)');
     str = str.replace(new RegExp('integrate\\(1/\\(sinh\\((' + diffvar + ')\\)\\^2\\),\\s*' + diffvar + '\\)', 'g'), '-coth($1)');
     str = str.replace(new RegExp('integrate\\(1/sinh\\((' + diffvar + ')\\)\\^2,\\s*' + diffvar + '\\)', 'g'), '-coth($1)');
+
+    let esc = diffvar.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    let innerLinearStr = '(?:' + esc + '\\s*([-+])\\s*(\\d+(?:\\.\\d+)?)|(-?\\d+(?:\\.\\d+)?)\\s*\\+\\s*' + esc + ')';
+
+    // Case 1a: integrate(sqrt(linear)^pow * t, t)
+    let reSqrtMulVar = new RegExp(
+        'integrate\\(sqrt\\(' + innerLinearStr + '\\)(?:\\^(?:(-?\\d+(?:\\.\\d+)?)|\\(([-\\d\\./]+)\\)))?\\*' + esc + ',\\s*' + esc + '\\)',
+        'g'
+    );
+    str = str.replace(reSqrtMulVar, (match, g1, g2, g3, g4, g5) => {
+        let sign = g1 || '';
+        let num = g2 || '';
+        let numConst = g3 || '';
+        let a = numConst ? numConst : (sign === '-' ? '-' : '') + num;
+
+        let powStr = g4 || g5;
+        let b = new Fraction(1, 2);
+        if (powStr) {
+            b = b.mul(Fraction.parse(powStr));
+        }
+
+        let res = solvePowerIntegral(a, b, diffvar);
+        return res !== null ? res : match;
+    });
+
+    // Case 1b: integrate(t * sqrt(linear)^pow, t)
+    let reVarMulSqrt = new RegExp(
+        'integrate\\(' + esc + '\\*sqrt\\(' + innerLinearStr + '\\)(?:\\^(?:(-?\\d+(?:\\.\\d+)?)|\\(([-\\d\\./]+)\\)))?,\\s*' + esc + '\\)',
+        'g'
+    );
+    str = str.replace(reVarMulSqrt, (match, g1, g2, g3, g4, g5) => {
+        let sign = g1 || '';
+        let num = g2 || '';
+        let numConst = g3 || '';
+        let a = numConst ? numConst : (sign === '-' ? '-' : '') + num;
+
+        let powStr = g4 || g5;
+        let b = new Fraction(1, 2);
+        if (powStr) {
+            b = b.mul(Fraction.parse(powStr));
+        }
+
+        let res = solvePowerIntegral(a, b, diffvar);
+        return res !== null ? res : match;
+    });
+
+    // Case 2a: integrate((linear)^pow * t, t)
+    let rePowMulVar = new RegExp(
+        'integrate\\(\\(' + innerLinearStr + '\\)\\^(?:(-?\\d+(?:\\.\\d+)?)|\\(([-\\d\\./]+)\\))\\*' + esc + ',\\s*' + esc + '\\)',
+        'g'
+    );
+    str = str.replace(rePowMulVar, (match, g1, g2, g3, g4, g5) => {
+        let sign = g1 || '';
+        let num = g2 || '';
+        let numConst = g3 || '';
+        let a = numConst ? numConst : (sign === '-' ? '-' : '') + num;
+
+        let powStr = g4 || g5 || '1';
+        let b = Fraction.parse(powStr);
+
+        let res = solvePowerIntegral(a, b, diffvar);
+        return res !== null ? res : match;
+    });
+
+    // Case 2b: integrate(t * (linear)^pow, t)
+    let reVarMulPow = new RegExp(
+        'integrate\\(' + esc + '\\*\\(' + innerLinearStr + '\\)\\^(?:(-?\\d+(?:\\.\\d+)?)|\\(([-\\d\\./]+)\\)),\\s*' + esc + '\\)',
+        'g'
+    );
+    str = str.replace(reVarMulPow, (match, g1, g2, g3, g4, g5) => {
+        let sign = g1 || '';
+        let num = g2 || '';
+        let numConst = g3 || '';
+        let a = numConst ? numConst : (sign === '-' ? '-' : '') + num;
+
+        let powStr = g4 || g5 || '1';
+        let b = Fraction.parse(powStr);
+
+        let res = solvePowerIntegral(a, b, diffvar);
+        return res !== null ? res : match;
+    });
 
     return str;
 }
@@ -12213,6 +12480,7 @@ function _solveSingleOrder(problem) {
                     for (let k = 0; k < n; k++) {
                         let before = integrated;
                         integrated = nerdamer(`integrate(${integrated}, x)`).toString();
+                        integrated = resolveUnresolvedIntegrals(integrated, 'x');
                         integSteps.push({ order: n - k, integrand: before, result: integrated });
                     }
 
