@@ -169,7 +169,7 @@ function splitImplicitFunctions(str) {
         'lcm', 'gcd', 'roots', 'coeffs', 'sqcomp', 'log10', 'simplify', 'pfactor', 'sinh', 'cosh',
         'tanh', 'sech', 'csch', 'coth', 'asin', 'acos', 'atan', 'acot', 'asec', 'acsc', 'diff',
         'pdiff', 'limit', 'sum', 'product', 'defint', 'nrt', 'abs', 'fact', 'matrix', 'vector',
-        'rref', 'basis', 'trace', 'det', 'inverse', 'invert', 'identity', 'null', 'mean', 'mode',
+        'rref', 'basis', 'trace', 'det', 'determinant', 'inverse', 'invert', 'identity', 'null', 'mean', 'mode',
         'median', 'zscore', 'smpvar', 'variance', 'smpstdev', 'stdev', 'factor', 'partfrac', 'deg',
         'min', 'max', 'floor', 'ceil', 'Si', 'Ci', 'Ei', 'rect', 'step', 'sinc', 'Shi', 'Chi',
         'mod', 'erf', 'sign', 'round', 'expand', 'fib', 'tri', 'parens', 'line', 'sin', 'cos',
@@ -218,7 +218,7 @@ function insertImplicitStars(str) {
         .replace(/(\))\s*(\()/g, '$1*$2')
         // Insert star between a closing paren and a variable/number (e.g. )y -> )*y
         .replace(/(\))\s*([a-zA-Z\d])/g, '$1*$2')
-        .replace(/\b(?!besselj|bessely|sin|cos|tan|cot|sec|csc|cosec|asin|acos|atan|acot|asec|acsc|acosec|log|ln|exp|sinh|cosh|tanh|sech|csch|cosech|coth|asinh|acosh|atanh|asech|acsch|acoth|sqrt|integrate|diff|pdiff|limit|sum|product|defint|nrt|abs|fact|squareroot|secondroot|secndroot|thirdroot|cuberoot|fourthroot|forthroot|fifthroot|sixthroot|seventhroot|eighthroot|ninthroot|tenthroot|multiply|matrix|vector|eigenvalues|eigenvectors|rref|basis|trace|transpose|det|inverse|invert|identity|null|conjugate|arg|realpart|imagpart|polarform|rectform|dot|cross|mag|normalize|angle|eq|lt|gt|lte|gte|laplace|ilaplace|ilt|mean|mode|median|zscore|smpvar|variance|smpstdev|stdev|factor|partfrac|lcm|gcd|roots|coeffs|deg|sqcomp|log10|min|max|floor|ceil|simplify|Si|Ci|Ei|rect|step|sinc|Shi|Chi|factorial|dfactorial|mod|erf|sign|round|pfactor|expand|fib|tri|parens|line|continued_fraction)([a-zA-Z]+)(\((?!(?:[+-]?\d+(?:\.\d+)?|pi)\)))/g, '$1*$2')
+        .replace(/\b(?!besselj|bessely|sin|cos|tan|cot|sec|csc|cosec|asin|acos|atan|acot|asec|acsc|acosec|log|ln|exp|sinh|cosh|tanh|sech|csch|cosech|coth|asinh|acosh|atanh|asech|acsch|acoth|sqrt|integrate|diff|pdiff|limit|sum|product|defint|nrt|abs|fact|squareroot|secondroot|secndroot|thirdroot|cuberoot|fourthroot|forthroot|fifthroot|sixthroot|seventhroot|eighthroot|ninthroot|tenthroot|multiply|matrix|vector|eigenvalues|eigenvectors|rref|basis|trace|transpose|det|determinant|inverse|invert|identity|null|conjugate|arg|realpart|imagpart|polarform|rectform|dot|cross|mag|normalize|angle|eq|lt|gt|lte|gte|laplace|ilaplace|ilt|mean|mode|median|zscore|smpvar|variance|smpstdev|stdev|factor|partfrac|lcm|gcd|roots|coeffs|deg|sqcomp|log10|min|max|floor|ceil|simplify|Si|Ci|Ei|rect|step|sinc|Shi|Chi|factorial|dfactorial|mod|erf|sign|round|pfactor|expand|fib|tri|parens|line|continued_fraction)([a-zA-Z]+)(\((?!(?:[+-]?\d+(?:\.\d+)?|pi)\)))/g, '$1*$2')
         // Insert star between standalone variables x/y and subsequent variables/functions (e.g. xe^y -> x*e^y, xy -> x*y)
         .replace(/\b([xy])([a-zA-Z])/gi, (match, p1, p2) => p1 + '*' + p2);
 }
@@ -1751,7 +1751,7 @@ function getEquation() {
         'lcm', 'gcd', 'roots', 'coeffs', 'sqcomp', 'log10', 'simplify', 'pfactor', 'sinh', 'cosh',
         'tanh', 'sech', 'csch', 'coth', 'asin', 'acos', 'atan', 'acot', 'asec', 'acsc', 'diff',
         'pdiff', 'limit', 'sum', 'product', 'defint', 'nrt', 'abs', 'fact', 'matrix', 'vector',
-        'rref', 'basis', 'trace', 'det', 'inverse', 'invert', 'identity', 'null', 'mean', 'mode',
+        'rref', 'basis', 'trace', 'det', 'determinant', 'inverse', 'invert', 'identity', 'null', 'mean', 'mode',
         'median', 'zscore', 'smpvar', 'variance', 'smpstdev', 'stdev', 'factor', 'partfrac', 'deg',
         'min', 'max', 'floor', 'ceil', 'Si', 'Ci', 'Ei', 'rect', 'step', 'sinc', 'Shi', 'Chi',
         'mod', 'erf', 'sign', 'round', 'expand', 'fib', 'tri', 'parens', 'line', 'sin', 'cos',
